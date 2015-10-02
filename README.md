@@ -6,6 +6,6 @@ The keys will be generated using SSH
 
 In the Terminal:
 
-$ ssh-keeygen -t rsa -b 4096 -C "your_email@example.com"
+$ ssh-keygen -t rsa -b 4096 -C "your_email@example.com"
 
 For more information go to https://help.github.com/articles/generating-ssh-keys/
