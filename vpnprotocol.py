@@ -1,5 +1,6 @@
 import socket
 import threading
+from Crypto.PublicKey import RSA
 
 MODE_SERVER = 0
 MODE_CLIENT = 1
@@ -20,6 +21,8 @@ class Connection:
         self.is_connected = False
         self.read_thread = None
         self.printmode = printmode;
+        self.keypair = RSA.generate(2048)
+        self.publickey = self.keypair.publickey()
 
     def start(self):
         print("Starting connection...")
@@ -37,8 +40,10 @@ class Connection:
             self.socket.connect((self.server, self.port))
             self.is_connected = True
             print("Connection accepted!")
-        self.read_thread = threading.Thread(target=self.read_loop, args=())
-        self.read_thread.start()
+        print("Starting authentication protocol!")
+        self.auth()
+        #self.read_thread = threading.Thread(target=self.read_loop, args=())
+        #self.read_thread.start()
 
     def connected(self):
         return self.is_connected
@@ -71,6 +76,30 @@ class Connection:
                 self.socket.send(data)
         if data.decode() == "f#":
             self.finish()
+
+    def auth(self):
+        """
+        """
+        if self.mode == MODE_SERVER:
+            SPuK = self.publickey.exportKey()
+            print("Sending public key...")
+            print(SPuK.decode())
+            self.write(SPuK)
+            print("Public key sent!")
+            print("Waiting for client's public key...")
+            CPuK = self.read()
+            print("Received client's public key!")
+            print(CPuK.decode())
+        elif self.mode == MODE_CLIENT:
+            CPuK = self.publickey.exportKey()
+            print("Waiting for server's public key...")
+            SPuK = self.read()
+            print("Received server's public key!")
+            print(SPuK.decode())
+            print("Sending public key...")
+            print(CPuK.decode())
+            self.write(CPuK)
+            print("Public key sent!")
 
     def finish(self):
         if self.connected():

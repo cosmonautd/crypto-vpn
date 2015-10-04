@@ -21,7 +21,7 @@ else:
     print("Sorry!")
     quit()
 
-while connection.connected():
+"""while connection.connected():
     command = input(">> ")
     connection.write(command.encode())
-connection.finish()
+connection.finish()"""
