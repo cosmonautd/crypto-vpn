@@ -1,6 +1,9 @@
 import socket
 import threading
 from Crypto.PublicKey import RSA
+import random
+import vpncrypto
+import os
 
 MODE_SERVER = 0
 MODE_CLIENT = 1
@@ -21,6 +24,7 @@ class Connection:
         self.is_connected = False
         self.read_thread = None
         self.printmode = printmode;
+        self.sharedsecret = "ANBT53MNV9&RL$74"
         self.keypair = RSA.generate(2048)
         self.publickey = self.keypair.publickey()
 
@@ -55,6 +59,11 @@ class Connection:
                 data = self.client.recv(1024)
             elif self.mode == MODE_CLIENT:
                 data = self.socket.recv(1024)
+            try:
+                if data.decode() == "f#":
+                    self.finish()
+            except UnicodeDecodeError:
+                pass
             return data
 
     def read_loop(self):
@@ -74,8 +83,11 @@ class Connection:
                 self.client.send(data)
             elif self.mode == MODE_CLIENT:
                 self.socket.send(data)
-        if data.decode() == "f#":
-            self.finish()
+        try:
+            if data.decode() == "f#":
+                self.finish()
+        except UnicodeDecodeError:
+            pass
 
     def auth(self):
         """
@@ -86,20 +98,70 @@ class Connection:
             print(SPuK.decode())
             self.write(SPuK)
             print("Public key sent!")
+
             print("Waiting for client's public key...")
             CPuK = self.read()
             print("Received client's public key!")
             print(CPuK.decode())
+
+            rs1 = bytes(os.urandom(4))
+            serversign = self.keypair.decrypt(vpncrypto.sha256(rs1+(self.sharedsecret).encode()))
+            print("Generated random string:", rs1, "Length:", len(rs1))
+            print("Generated signature:", serversign, "Length:", len(serversign))
+            message = rs1 + serversign
+            self.write(message)
+
+            authclient = self.read()
+            rs2 = authclient[:4]
+            clientsign = authclient[4:]
+            print("Received random string:", rs2, "Length:", len(rs2))
+            print("Received signature:", clientsign, "Length:", len(clientsign))
+
+            clientpublickey = RSA.importKey(CPuK)
+            if clientpublickey.encrypt(clientsign, 32.0)[0] == vpncrypto.sha256(rs2+self.sharedsecret.encode()):
+                print("Client authenticated!")
+            else:
+                print("Client not authenticated!")
+                self.finish()
+            print(clientpublickey.encrypt(clientsign, 32.0)[0])
+            print(vpncrypto.sha256(rs2+self.sharedsecret.encode()))
+
+            self.write("f#".encode())
+
         elif self.mode == MODE_CLIENT:
             CPuK = self.publickey.exportKey()
             print("Waiting for server's public key...")
             SPuK = self.read()
             print("Received server's public key!")
             print(SPuK.decode())
+
             print("Sending public key...")
             print(CPuK.decode())
             self.write(CPuK)
             print("Public key sent!")
+
+            authserver = self.read()
+            rs1 = authserver[:4]
+            serversign = authserver[4:]
+            print("Received random string:", rs1, "Length:", len(rs1))
+            print("Received signature:", serversign, "Length:", len(serversign))
+
+            rs2 = bytes(os.urandom(4))
+            clientsign = self.keypair.decrypt(vpncrypto.sha256(rs2+(self.sharedsecret).encode()))
+            print("Generated random string:", rs2, "Length:", len(rs2))
+            print("Generated signature:", clientsign, "Length:", len(clientsign))
+            authclient = rs2 + clientsign
+            self.write(authclient)
+
+            serverpublickey = RSA.importKey(SPuK)
+            if serverpublickey.encrypt(serversign, 32.0)[0] == vpncrypto.sha256(rs1+self.sharedsecret.encode()):
+                print("Server authenticated!")
+            else:
+                print("Server not authenticated!")
+                self.finish()
+            print(serverpublickey.encrypt(serversign, 32.0)[0])
+            print(vpncrypto.sha256(rs1+self.sharedsecret.encode()))
+
 
     def finish(self):
         if self.connected():

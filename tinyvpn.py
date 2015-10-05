@@ -16,7 +16,7 @@ command = input(">> ")
 
 if command == "s":
     connection.start()
-    print("Type f# to finish connection!")
+    #print("Type f# to finish connection!")
 else:
     print("Sorry!")
     quit()
