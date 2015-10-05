@@ -25,7 +25,7 @@ class Connection:
         self.read_thread = None
         self.printmode = printmode;
         self.sharedsecret = "ANBT53MNV9&RL$74"
-        self.keypair = RSA.generate(2048)
+        self.keypair = RSA.generate(1024)
         self.publickey = self.keypair.publickey()
 
     def start(self):
