@@ -162,6 +162,15 @@ class Connection:
             print(serverpublickey.encrypt(serversign, 32.0)[0])
             print(vpncrypto.sha256(rs1+self.sharedsecret.encode()))
 
+    def swapKeys(self):
+        if self.mode = MODE_SERVER:
+            #This method does not have the clientpublickey, does it?
+            #What is K? Random key?
+            K = bytes(os.urandom(4))
+
+            #encryption backbone
+            clientpublickey.encrypt(K+self.serverpublickey.encrypt(vpncrypto.SHA256(K)))
+        elif self.mode = MODE_CLIENT:
 
     def finish(self):
         if self.connected():
