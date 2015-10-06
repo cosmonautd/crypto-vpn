@@ -3,7 +3,7 @@ import threading
 from Crypto.PublicKey import RSA
 import random
 import vpncrypto
-import AESprotocol
+import aesprotocol
 import os
 
 MODE_SERVER = 0
@@ -22,6 +22,10 @@ class Connection:
         if self.mode == MODE_SERVER:
             self.client = None
             self.client_addr = None
+            self.clientpublickey = None
+        elif self.mode == MODE_CLIENT:
+            self.serverpublickey = None
+        self.AESKey = None
         self.is_connected = False
         self.read_thread = None
         self.printmode = printmode;
@@ -47,6 +51,7 @@ class Connection:
             print("Connection accepted!")
         print("Starting authentication protocol!")
         self.auth()
+        self.exchangeKeys()
         #self.read_thread = threading.Thread(target=self.read_loop, args=())
         #self.read_thread.start()
 
@@ -118,13 +123,13 @@ class Connection:
             print("Received random string:", rs2, "Length:", len(rs2))
             print("Received signature:", clientsign, "Length:", len(clientsign))
 
-            clientpublickey = RSA.importKey(CPuK)
-            if clientpublickey.encrypt(clientsign, 32.0)[0] == vpncrypto.sha256(rs2+self.sharedsecret.encode()):
+            self.clientpublickey = RSA.importKey(CPuK)
+            if self.clientpublickey.encrypt(clientsign, 32.0)[0] == vpncrypto.sha256(rs2+self.sharedsecret.encode()):
                 print("Client authenticated!")
             else:
                 print("Client not authenticated!")
                 self.finish()
-            print(clientpublickey.encrypt(clientsign, 32.0)[0])
+            print(self.clientpublickey.encrypt(clientsign, 32.0)[0])
             print(vpncrypto.sha256(rs2+self.sharedsecret.encode()))
 
             self.write("f#".encode())
@@ -154,30 +159,40 @@ class Connection:
             authclient = rs2 + clientsign
             self.write(authclient)
 
-            serverpublickey = RSA.importKey(SPuK)
-            if serverpublickey.encrypt(serversign, 32.0)[0] == vpncrypto.sha256(rs1+self.sharedsecret.encode()):
+            self.serverpublickey = RSA.importKey(SPuK)
+            if self.serverpublickey.encrypt(serversign, 32.0)[0] == vpncrypto.sha256(rs1+self.sharedsecret.encode()):
                 print("Server authenticated!")
             else:
                 print("Server not authenticated!")
                 self.finish()
-            print(serverpublickey.encrypt(serversign, 32.0)[0])
+            print(self.serverpublickey.encrypt(serversign, 32.0)[0])
             print(vpncrypto.sha256(rs1+self.sharedsecret.encode()))
 
-    def swapKeys(self):
-        if self.mode = MODE_SERVER:
+    def exchangeKeys(self):
+        if self.mode == MODE_SERVER:
+            print("\n\n\n\n\n\n")
             #This method does not have the clientpublickey, does it? #TODO: Store clientpublickey and serverpublickey from the auth() method
             print ("Generating AES key")
-            self.AESkey = bytes(os.urandom(16))
-            print ("AESkey Generated, AES length = "+len(self.AESkey))
+            self.AESKey = bytes(os.urandom(16))
+            print ("AESkey Generated, AES length = "+str(len(self.AESKey)))
 
-            AESObject = AESprotocol.AEScipher(self.AESkey)
+            AESObject = aesprotocol.AESCipher(self.AESKey)
             print ("AES obeject created")
 
-            AEScipher = clientpublickey.encrypt(self.AESkey+self.keypair.decrypt(vpncrypto.SHA256(self.AESkey))) #Using decrypt as an encryption techinique?
+            #BUG
+            #printing each of the called objects to test where is the error.
+            print (self.clientpublickey) #ok
+            print (self.keypair) #ok
+            print (self.AESKey) #ok
+            print (vpncrypto.SHA256(self.AESKey)) #ERROR
+            print ("\n\n\n")
+            
+            AESCipher = self.clientpublickey.encrypt(self.AESKey+self.keypair.decrypt(vpncrypto.SHA256(self.AESKey)))
+
             print ("AES key Encrypted")
 
             print ("Sending Encrypted AES key")
-            self.write(AEScipher)
+            self.write(AESCipher)
             print ("Encrypted AES key sent")
 
             print("Waiting for ACK")
@@ -194,21 +209,22 @@ class Connection:
                 self.finish()
 
 #======================================================================================================================#
-        elif self.mode = MODE_CLIENT:
+        elif self.mode == MODE_CLIENT:
+            print("\n\n\n\n\n\n")
 
             print ("Receiving AES key from the server")
             rawData = self.read()
             print ("AES key from the server Received ")
 
             print ("Decrypting AES key")
-            self.AESkey = keypair.dencrypt(rawData)[:128]
-            cipherShaAESKey = keypair.dencrypt(rawData)[128:] # TODO: decrypt once instead of twice
-            shaAEScheck = serverpublickey.encrypt(cipherShaAESKey,"")
+            self.AESKey = self.keypair.decrypt(rawData)[:128]
+            cipherShaAESKey = self.keypair.decrypt(rawData)[128:] # TODO: decrypt once instead of twice
+            shaAEScheck = self.serverpublickey.encrypt(cipherShaAESKey,"")
             print ("AES key decrypted")
 
-            if (vpncrypto.sha256(self.AESkey) == shaAEScheck):
+            if (vpncrypto.sha256(self.AESKey) == shaAEScheck):
                 print ("AES key authenticated and aquired")
-                AESObject = AESprotocol.AEScipher(self.AESkey)
+                AESObject = aesprotocol.AESCipher(self.AESKey)
                 print ("AES obeject created")
             else:
                 print ("Integrity check failed, closing connection!")
