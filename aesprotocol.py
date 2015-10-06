@@ -13,7 +13,7 @@ class AESCipher:
     def encrypt( self, raw ):
         raw = pad(raw)
         iv = os.urandom( AES.block_size )
-        cipher = AES.new( self.key, AES.MODE_CBC, iv )
+        cipher = AES.new( self.key, AES.MODE_CBC, iv ) #TODO: Are you really going to use CBC? Why?
         return base64.b64encode( iv + cipher.encrypt( raw ) )
 
     def decrypt( self, enc ):
