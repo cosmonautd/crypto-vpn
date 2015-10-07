@@ -179,15 +179,15 @@ class Connection:
             AESObject = aesprotocol.AESCipher(self.AESKey)
             print ("AES obeject created")
 
-            #BUG
-            #printing each of the called objects to test where is the error.
-            print (self.clientpublickey) #ok
-            print (self.keypair) #ok
-            print (self.AESKey) #ok
-            print (vpncrypto.SHA256(self.AESKey)) #ERROR
+            print (self.AESKey+self.keypair.decrypt(vpncrypto.sha256(self.AESKey)))
+            print (len(self.AESKey+self.keypair.decrypt(vpncrypto.sha256(self.AESKey))))
+
             print ("\n\n\n")
-            
-            AESCipher = self.clientpublickey.encrypt(self.AESKey+self.keypair.decrypt(vpncrypto.SHA256(self.AESKey)))
+
+            #AESCipher = self.clientpublickey.encrypt(self.AESKey+self.keypair.decrypt(vpncrypto.sha256(self.AESKey)),"") #Backup idea
+            AESCipher = self.clientpublickey.encrypt(self.AESKey+vpncrypto.sha256(self.AESKey),"")
+
+            #AESCipher = self.clientpublickey.encrypt(self.keypair.decrypt(vpncrypto.sha256(self.AESKey)),"")
 
             print ("AES key Encrypted")
 
