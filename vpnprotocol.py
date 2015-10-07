@@ -185,7 +185,7 @@ class Connection:
             print ("\n\n\n")
 
             #AESCipher = self.clientpublickey.encrypt(self.AESKey+self.keypair.decrypt(vpncrypto.sha256(self.AESKey)),"") #Backup idea
-            AESCipher = self.clientpublickey.encrypt(self.AESKey+vpncrypto.sha256(self.AESKey),"")
+            AESCipher = self.clientpublickey.encrypt(self.AESKey+vpncrypto.sha256(self.AESKey), 0.0)[0]
 
             #AESCipher = self.clientpublickey.encrypt(self.keypair.decrypt(vpncrypto.sha256(self.AESKey)),"")
 
