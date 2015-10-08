@@ -196,12 +196,12 @@ class Connection:
 
             decry = AESObject.decrypt(ACK)  #TODO: Change variable name
             print (len(decry))
-            print (bytes(decry))
+            print (decry)
             print("\n\n")
-            rs = decry[2:12]
+            rs = decry[:3]
             print ("rs: ")
             print (rs)
-            shaRs = decry[2:]
+            shaRs = decry[3:]
             print ("sha: ")
             print (shaRs)
 
@@ -238,7 +238,7 @@ class Connection:
 
             print("Sending ACK for received AES key")
             rs = bytes(os.urandom(3))
-            ACK = AESObject.encrypt(str(rs+vpncrypto.sha256(rs)))
+            ACK = AESObject.encrypt(rs+vpncrypto.sha256(rs))
             self.write(ACK)
 
             print ("ACK sent! ACK size: "+str(len(ACK)))
