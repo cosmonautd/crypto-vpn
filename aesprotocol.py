@@ -1,4 +1,5 @@
 import base64
+import os
 from Crypto.Cipher import AES
 from Crypto import Random #TODO: Is there a problem with import redundancy?
 
@@ -9,6 +10,7 @@ unpad = lambda s : s[:-ord(s[len(s)-1:])]
 class AESCipher:
     def __init__( self, key ):
         self.key = key
+
 
     def encrypt( self, raw ):
         raw = pad(raw)
