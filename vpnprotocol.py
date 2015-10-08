@@ -96,6 +96,7 @@ class Connection:
             pass
 
     def auth(self):
+        print("Authenticading connection...")
         """
         """
         if self.mode == MODE_SERVER:
@@ -169,41 +170,30 @@ class Connection:
             print(vpncrypto.sha256(rs1+self.sharedsecret.encode()))
 
     def exchangeKeys(self):
+        print ("\nExchanging AES keys...")
         if self.mode == MODE_SERVER:
-            print("\n\n\n\n\n\n")
-
             print ("Generating AES key")
             self.AESKey = bytes(os.urandom(16))
-            print ("AESkey Generated, AES length = "+str(len(self.AESKey)))
+            print ("AESkey Generated, AES")
 
             AESObject = aesprotocol.AESCipher(self.AESKey)
             print ("AES obeject created")
 
-            #AESCipher = self.clientpublickey.encrypt(self.AESKey+self.keypair.decrypt(vpncrypto.sha256(self.AESKey)),"") #Backup idea
             AESCipher = self.clientpublickey.encrypt(self.AESKey+vpncrypto.sha256(self.AESKey), 0.0)[0]
-
-            #AESCipher = self.clientpublickey.encrypt(self.keypair.decrypt(vpncrypto.sha256(self.AESKey)),"")
-
             print ("AES key Encrypted")
-            print (AESCipher)
-            print ("Sending Encrypted AES key. Encrypted AES size:"+str(len(AESCipher)))
+
+            print ("Sending Encrypted AES key.")
             self.write(AESCipher)
             print ("Encrypted AES key sent")
 
             print("Waiting for ACK")
             ACK = self.read()
-            print ("ACK received. ACK size: "+str(len(ACK)))
+            print ("ACK received.")
 
+            print ("Decrypting ACK")
             decry = AESObject.decrypt(ACK)  #TODO: Change variable name
-            print (len(decry))
-            print (decry)
-            print("\n\n")
             rs = decry[:3]
-            print ("rs: ")
-            print (rs)
             shaRs = decry[3:]
-            print ("sha: ")
-            print (shaRs)
 
             if(vpncrypto.sha256(rs) == shaRs):
                 print ("AES key sent with success!")
@@ -211,22 +201,16 @@ class Connection:
                 print ("Error sending AESKey! Closing connection!")
                 self.finish()
 
-#======================================================================================================================#
         elif self.mode == MODE_CLIENT:
-            print("\n\n\n\n\n\n")
 
             print ("Receiving AES key from the server")
             rawData = self.read()
-            print (rawData)
-            print ("AES key from the server Received. length = "+str(len(rawData)))
+            print ("AES key from the server Received.")
 
-            print ("Decrypting AES key")
+            print ("Checking AES key integrity")
             decryption = self.keypair.decrypt(rawData)
-            print ("Size of the unencripted: "+str(len(decryption)))
             self.AESKey = decryption[:16]
             cipherShaAESKey = decryption[16:]
-            #shaAEScheck = self.serverpublickey.encrypt(cipherShaAESKey,"")
-            print ("AES key decrypted")
 
             if (vpncrypto.sha256(self.AESKey) == cipherShaAESKey):
                 print ("AES key authenticated and aquired")
@@ -236,20 +220,11 @@ class Connection:
                 print ("Integrity check failed, closing connection!")
                 self.finish()
 
-            print("Sending ACK for received AES key")
+            print("Generating ACK for received AES key")
             rs = bytes(os.urandom(3))
             ACK = AESObject.encrypt(rs+vpncrypto.sha256(rs))
             self.write(ACK)
-
-            print ("ACK sent! ACK size: "+str(len(ACK)))
-            print("size of the unencrypeted PACKAGE: "+str(len(rs+vpncrypto.sha256(rs))))
-            print (ACK)
-            print("\n\n\n")
-            print ("Random bytes: ")
-            print (rs)
-            print ("sha:")
-            print (vpncrypto.sha256(rs))
-            print("\n\n\n\n\n")
+            print ("ACK sent to the server")
 
     def finish(self):
         if self.connected():
