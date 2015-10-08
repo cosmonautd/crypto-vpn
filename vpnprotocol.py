@@ -132,7 +132,7 @@ class Connection:
             print(self.clientpublickey.encrypt(clientsign, 32.0)[0])
             print(vpncrypto.sha256(rs2+self.sharedsecret.encode()))
 
-            self.write("f#".encode())
+            #self.write("f#".encode())
 
         elif self.mode == MODE_CLIENT:
             CPuK = self.publickey.exportKey()
@@ -171,7 +171,7 @@ class Connection:
     def exchangeKeys(self):
         if self.mode == MODE_SERVER:
             print("\n\n\n\n\n\n")
-            #This method does not have the clientpublickey, does it? #TODO: Store clientpublickey and serverpublickey from the auth() method
+
             print ("Generating AES key")
             self.AESKey = bytes(os.urandom(16))
             print ("AESkey Generated, AES length = "+str(len(self.AESKey)))
@@ -179,28 +179,31 @@ class Connection:
             AESObject = aesprotocol.AESCipher(self.AESKey)
             print ("AES obeject created")
 
-            print (self.AESKey+self.keypair.decrypt(vpncrypto.sha256(self.AESKey)))
-            print (len(self.AESKey+self.keypair.decrypt(vpncrypto.sha256(self.AESKey))))
-
-            print ("\n\n\n")
-
             #AESCipher = self.clientpublickey.encrypt(self.AESKey+self.keypair.decrypt(vpncrypto.sha256(self.AESKey)),"") #Backup idea
             AESCipher = self.clientpublickey.encrypt(self.AESKey+vpncrypto.sha256(self.AESKey), 0.0)[0]
 
             #AESCipher = self.clientpublickey.encrypt(self.keypair.decrypt(vpncrypto.sha256(self.AESKey)),"")
 
             print ("AES key Encrypted")
-
-            print ("Sending Encrypted AES key")
+            print (AESCipher)
+            print ("Sending Encrypted AES key. Encrypted AES size:"+str(len(AESCipher)))
             self.write(AESCipher)
             print ("Encrypted AES key sent")
 
             print("Waiting for ACK")
             ACK = self.read()
-            print ("ACK received")
+            print ("ACK received. ACK size: "+str(len(ACK)))
 
-            rs = AESObject.decrypt(ACK)[:3]
-            shaRs = AESObject.decrypt(ACK)[3:] #TODO: Decrypt once instead of twice
+            decry = AESObject.decrypt(ACK)  #TODO: Change variable name
+            print (len(decry))
+            print (bytes(decry))
+            print("\n\n")
+            rs = decry[2:12]
+            print ("rs: ")
+            print (rs)
+            shaRs = decry[2:]
+            print ("sha: ")
+            print (shaRs)
 
             if(vpncrypto.sha256(rs) == shaRs):
                 print ("AES key sent with success!")
@@ -214,15 +217,18 @@ class Connection:
 
             print ("Receiving AES key from the server")
             rawData = self.read()
-            print ("AES key from the server Received ")
+            print (rawData)
+            print ("AES key from the server Received. length = "+str(len(rawData)))
 
             print ("Decrypting AES key")
-            self.AESKey = self.keypair.decrypt(rawData)[:128]
-            cipherShaAESKey = self.keypair.decrypt(rawData)[128:] # TODO: decrypt once instead of twice
-            shaAEScheck = self.serverpublickey.encrypt(cipherShaAESKey,"")
+            decryption = self.keypair.decrypt(rawData)
+            print ("Size of the unencripted: "+str(len(decryption)))
+            self.AESKey = decryption[:16]
+            cipherShaAESKey = decryption[16:]
+            #shaAEScheck = self.serverpublickey.encrypt(cipherShaAESKey,"")
             print ("AES key decrypted")
 
-            if (vpncrypto.sha256(self.AESKey) == shaAEScheck):
+            if (vpncrypto.sha256(self.AESKey) == cipherShaAESKey):
                 print ("AES key authenticated and aquired")
                 AESObject = aesprotocol.AESCipher(self.AESKey)
                 print ("AES obeject created")
@@ -232,10 +238,18 @@ class Connection:
 
             print("Sending ACK for received AES key")
             rs = bytes(os.urandom(3))
-            ACK = AESObject.encrypt(rs+vpncrypto.sha256(rs))
-            self.send(KeyReceived)
+            ACK = AESObject.encrypt(str(rs+vpncrypto.sha256(rs)))
+            self.write(ACK)
 
-            print ("ACK sent!")
+            print ("ACK sent! ACK size: "+str(len(ACK)))
+            print("size of the unencrypeted PACKAGE: "+str(len(rs+vpncrypto.sha256(rs))))
+            print (ACK)
+            print("\n\n\n")
+            print ("Random bytes: ")
+            print (rs)
+            print ("sha:")
+            print (vpncrypto.sha256(rs))
+            print("\n\n\n\n\n")
 
     def finish(self):
         if self.connected():
