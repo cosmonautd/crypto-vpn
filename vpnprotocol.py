@@ -4,6 +4,7 @@ from Crypto.PublicKey import RSA
 import random
 import vpncrypto
 import os
+import sys
 
 MODE_SERVER = 0
 MODE_CLIENT = 1
@@ -14,6 +15,7 @@ class Connection:
         self.server = server
         self.port = port
         self.socket = socket.socket()
+        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         if mode == MODE_SERVER or mode == MODE_CLIENT:
             self.mode = mode
         else: raise ValueError("Invalid connection mode. \
@@ -52,8 +54,11 @@ class Connection:
         print("Starting authentication protocol!")
         self.auth()
         self.exchangeKeys()
-        self.read_thread = threading.Thread(target=self.read_encrypted_loop, args=())
-        self.read_thread.start()
+        try:
+            self.read_thread = threading.Thread(target=self.read_encrypted_loop, args=())
+            self.read_thread.start()
+        except (KeyboardInterrupt, SystemExit):
+            sys.exit()
 
     def connected(self):
         return self.is_connected
@@ -165,7 +170,7 @@ class Connection:
             AESObject = vpncrypto.AESCipher(self.AESKey)
             print ("AES obeject created")
 
-            AESCipher = self.clientpublickey.encrypt(self.AESKey+vpncrypto.sha256(self.AESKey), 0.0)[0]
+            AESCipher = self.clientpublickey.encrypt(self.AESKey+vpncrypto.sha256(self.AESKey+self.sharedsecret.encode()), 0.0)[0]
             print ("AES key Encrypted")
 
             print ("Sending Encrypted AES key.")
@@ -178,10 +183,10 @@ class Connection:
 
             print ("Decrypting ACK")
             decry = AESObject.decrypt(ACK)  #TODO: Change variable name
-            rs = decry[:3]
-            shaRs = decry[3:]
+            rs3 = decry[:4]
+            shaRs = decry[4:]
 
-            if(vpncrypto.sha256(rs) == shaRs):
+            if(vpncrypto.sha256(rs3) == shaRs):
                 print ("AES key sent with success!")
                 self.AESObject = AESObject
             else:
@@ -199,7 +204,7 @@ class Connection:
             self.AESKey = decryption[:16]
             cipherShaAESKey = decryption[16:]
 
-            if (vpncrypto.sha256(self.AESKey) == cipherShaAESKey):
+            if (vpncrypto.sha256(self.AESKey+self.sharedsecret.encode()) == cipherShaAESKey):
                 print ("AES key authenticated and aquired")
                 self.AESObject = vpncrypto.AESCipher(self.AESKey)
                 print ("AES obeject created")
@@ -208,8 +213,8 @@ class Connection:
                 self.finish()
 
             print("Generating ACK for received AES key")
-            rs = bytes(os.urandom(3))
-            ACK = self.AESObject.encrypt(rs+vpncrypto.sha256(rs))
+            rs3 = bytes(os.urandom(4))
+            ACK = self.AESObject.encrypt(rs3+vpncrypto.sha256(rs3))
             self.write(ACK)
             print ("ACK sent to the server")
 
@@ -224,6 +229,11 @@ class Connection:
 
                 if len(encrypted_data) > 0:
                     data = self.AESObject.decrypt(encrypted_data)
+                    sha = data[:32]
+                    data = data[32:]
+                    if not vpncrypto.sha256(data) == sha:
+                        print("Received message could not be verified! Integrity problems.")
+                        self.finish()
                 else: data = "".encode()
 
                 try:
@@ -236,13 +246,14 @@ class Connection:
     def write_encrypted(self, data):
         if self.AESObject:
             if self.connected():
+                data = vpncrypto.sha256(data) + data
                 encrypted_data = self.AESObject.encrypt(data)
                 if self.mode == MODE_SERVER:
                     self.client.send(encrypted_data)
                 elif self.mode == MODE_CLIENT:
                     self.socket.send(encrypted_data)
             try:
-                if data.decode() == "f#":
+                if data[32:].decode() == "f#":
                     self.finish()
             except UnicodeDecodeError:
                 pass
