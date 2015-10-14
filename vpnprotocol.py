@@ -3,7 +3,6 @@ import threading
 from Crypto.PublicKey import RSA
 import random
 import vpncrypto
-import aesprotocol
 import os
 
 MODE_SERVER = 0
@@ -91,71 +90,70 @@ class Connection:
         """
         if self.mode == MODE_SERVER:
             SPuK = self.publickey.exportKey()
-            print("Sending public key...")
+            rs1 = bytes(os.urandom(4))
+            print("Generated random string:", rs1, "Length:", len(rs1))
+            print("Sending public key + rs1...")
             print(SPuK.decode())
-            self.write(SPuK)
-            print("Public key sent!")
+            self.write(rs1+SPuK)
+            print("Public key + rs1 sent!")
 
             print("Waiting for client's public key...")
-            CPuK = self.read()
+            message = self.read()
+            rs2 = message[:4]
+            CPuK = message[4:]
+            print("Received random string:", rs2, "Length:", len(rs2))
             print("Received client's public key!")
             print(CPuK.decode())
 
-            rs1 = bytes(os.urandom(4))
-            serversign = self.keypair.decrypt(vpncrypto.sha256(rs1+(self.sharedsecret).encode()))
-            print("Generated random string:", rs1, "Length:", len(rs1))
+            serversign = self.keypair.decrypt(vpncrypto.sha256(rs2+(self.sharedsecret).encode()))
             print("Generated signature:", serversign, "Length:", len(serversign))
-            message = rs1 + serversign
-            self.write(message)
+            self.write(serversign)
 
-            authclient = self.read()
-            rs2 = authclient[:4]
-            clientsign = authclient[4:]
-            print("Received random string:", rs2, "Length:", len(rs2))
+            clientsign = self.read()
             print("Received signature:", clientsign, "Length:", len(clientsign))
 
             self.clientpublickey = RSA.importKey(CPuK)
-            if self.clientpublickey.encrypt(clientsign, 32.0)[0] == vpncrypto.sha256(rs2+self.sharedsecret.encode()):
+            if self.clientpublickey.encrypt(clientsign, 0.0)[0] == vpncrypto.sha256(rs1+self.sharedsecret.encode()):
                 print("Client authenticated!")
             else:
                 print("Client not authenticated!")
                 self.finish()
-            print(self.clientpublickey.encrypt(clientsign, 32.0)[0])
-            print(vpncrypto.sha256(rs2+self.sharedsecret.encode()))
+            print(self.clientpublickey.encrypt(clientsign, 0.0)[0])
+            print(vpncrypto.sha256(rs1+self.sharedsecret.encode()))
 
         elif self.mode == MODE_CLIENT:
             CPuK = self.publickey.exportKey()
             print("Waiting for server's public key...")
-            SPuK = self.read()
+            message = self.read()
+            rs1 = message[:4]
+            SPuK = message[4:]
             print("Received server's public key!")
+            print("Received random string:", rs1, "Length:", len(rs1))
             print(SPuK.decode())
 
+            rs2 = bytes(os.urandom(4))
+            print("Generated random string:", rs2, "Length:", len(rs2))
             print("Sending public key...")
             print(CPuK.decode())
-            self.write(CPuK)
+            self.write(rs2+CPuK)
             print("Public key sent!")
 
-            authserver = self.read()
-            rs1 = authserver[:4]
-            serversign = authserver[4:]
-            print("Received random string:", rs1, "Length:", len(rs1))
+            serversign = self.read()
+
             print("Received signature:", serversign, "Length:", len(serversign))
 
-            rs2 = bytes(os.urandom(4))
-            clientsign = self.keypair.decrypt(vpncrypto.sha256(rs2+(self.sharedsecret).encode()))
-            print("Generated random string:", rs2, "Length:", len(rs2))
+            clientsign = self.keypair.decrypt(vpncrypto.sha256(rs1+(self.sharedsecret).encode()))
             print("Generated signature:", clientsign, "Length:", len(clientsign))
-            authclient = rs2 + clientsign
-            self.write(authclient)
+            self.write(clientsign)
 
             self.serverpublickey = RSA.importKey(SPuK)
-            if self.serverpublickey.encrypt(serversign, 32.0)[0] == vpncrypto.sha256(rs1+self.sharedsecret.encode()):
+            if self.serverpublickey.encrypt(serversign, 0.0)[0] == vpncrypto.sha256(rs2+self.sharedsecret.encode()):
                 print("Server authenticated!")
             else:
                 print("Server not authenticated!")
                 self.finish()
-            print(self.serverpublickey.encrypt(serversign, 32.0)[0])
-            print(vpncrypto.sha256(rs1+self.sharedsecret.encode()))
+            print(self.serverpublickey.encrypt(serversign, 0.0)[0])
+            print(vpncrypto.sha256(rs2+self.sharedsecret.encode()))
 
     def exchangeKeys(self):
         print ("\nExchanging AES keys...")
