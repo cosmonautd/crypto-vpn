@@ -1,8 +1,6 @@
 from Crypto.Hash import SHA256
-import base64
 import os
 from Crypto.Cipher import AES
-from Crypto import Random #TODO: Is there a problem with import redundancy?
 
 def sha256(data, hexdigest=False):
     """
