@@ -30,8 +30,9 @@ class Connection:
         self.read_thread = None
         self.printmode = printmode;
         self.sharedsecret = "ANBT53MNV9&RL$74"
-        self.keypair = RSA.generate(1024)
+        self.keypair = RSA.generate(2048)
         self.publickey = self.keypair.publickey()
+        self.AESObject = None
 
     def start(self):
         print("Starting connection...")
@@ -52,8 +53,8 @@ class Connection:
         print("Starting authentication protocol!")
         self.auth()
         self.exchangeKeys()
-        #self.read_thread = threading.Thread(target=self.read_loop, args=())
-        #self.read_thread.start()
+        self.read_thread = threading.Thread(target=self.read_encrypted_loop, args=())
+        self.read_thread.start()
 
     def connected(self):
         return self.is_connected
@@ -71,17 +72,6 @@ class Connection:
             except UnicodeDecodeError:
                 pass
             return data
-
-    def read_loop(self):
-        message = ""
-        while not message == "f#" and self.connected():
-            message = (self.read()).decode()
-            if self.printmode:
-                if self.mode == MODE_SERVER:
-                    print(self.client_addr, message, "\n>> ", end="")
-                elif self.mode == MODE_CLIENT:
-                    print("(" + self.server + ")", message, "\n>> ", end="")
-        self.finish()
 
     def write(self, data):
         if self.connected():
@@ -133,8 +123,6 @@ class Connection:
             print(self.clientpublickey.encrypt(clientsign, 32.0)[0])
             print(vpncrypto.sha256(rs2+self.sharedsecret.encode()))
 
-            #self.write("f#".encode())
-
         elif self.mode == MODE_CLIENT:
             CPuK = self.publickey.exportKey()
             print("Waiting for server's public key...")
@@ -176,7 +164,7 @@ class Connection:
             self.AESKey = bytes(os.urandom(16))
             print ("AESkey Generated, AES")
 
-            AESObject = aesprotocol.AESCipher(self.AESKey)
+            AESObject = vpncrypto.AESCipher(self.AESKey)
             print ("AES obeject created")
 
             AESCipher = self.clientpublickey.encrypt(self.AESKey+vpncrypto.sha256(self.AESKey), 0.0)[0]
@@ -197,6 +185,7 @@ class Connection:
 
             if(vpncrypto.sha256(rs) == shaRs):
                 print ("AES key sent with success!")
+                self.AESObject = AESObject
             else:
                 print ("Error sending AESKey! Closing connection!")
                 self.finish()
@@ -214,7 +203,7 @@ class Connection:
 
             if (vpncrypto.sha256(self.AESKey) == cipherShaAESKey):
                 print ("AES key authenticated and aquired")
-                AESObject = aesprotocol.AESCipher(self.AESKey)
+                self.AESObject = vpncrypto.AESCipher(self.AESKey)
                 print ("AES obeject created")
             else:
                 print ("Integrity check failed, closing connection!")
@@ -222,9 +211,54 @@ class Connection:
 
             print("Generating ACK for received AES key")
             rs = bytes(os.urandom(3))
-            ACK = AESObject.encrypt(rs+vpncrypto.sha256(rs))
+            ACK = self.AESObject.encrypt(rs+vpncrypto.sha256(rs))
             self.write(ACK)
             print ("ACK sent to the server")
+
+    def read_encrypted(self):
+        if self.AESObject:
+            if self.connected():
+                data = ""
+                if self.mode == MODE_SERVER:
+                    encrypted_data = self.client.recv(1024)
+                elif self.mode == MODE_CLIENT:
+                    encrypted_data = self.socket.recv(1024)
+
+                if len(encrypted_data) > 0:
+                    data = self.AESObject.decrypt(encrypted_data)
+                else: data = "".encode()
+
+                try:
+                    if data.decode() == "f#":
+                        self.finish()
+                except UnicodeDecodeError:
+                    pass
+                return data
+
+    def write_encrypted(self, data):
+        if self.AESObject:
+            if self.connected():
+                encrypted_data = self.AESObject.encrypt(data)
+                if self.mode == MODE_SERVER:
+                    self.client.send(encrypted_data)
+                elif self.mode == MODE_CLIENT:
+                    self.socket.send(encrypted_data)
+            try:
+                if data.decode() == "f#":
+                    self.finish()
+            except UnicodeDecodeError:
+                pass
+
+    def read_encrypted_loop(self):
+        message = ""
+        while not message == "f#" and self.connected():
+            message = (self.read_encrypted()).decode()
+            if self.printmode:
+                if self.mode == MODE_SERVER:
+                    print(self.client_addr, message, "\n>> ", end="")
+                elif self.mode == MODE_CLIENT:
+                    print("(" + self.server + ")", message, "\n>> ", end="")
+        self.finish()
 
     def finish(self):
         if self.connected():

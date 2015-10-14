@@ -16,12 +16,12 @@ command = input(">> ")
 
 if command == "s":
     connection.start()
-    #print("Type f# to finish connection!")
+    print("Type f# to finish connection!")
 else:
     print("Sorry!")
     quit()
 
-"""while connection.connected():
+while connection.connected():
     command = input(">> ")
-    connection.write(command.encode())
-connection.finish()"""
+    connection.write_encrypted(command.encode())
+connection.finish()
