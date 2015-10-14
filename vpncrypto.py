@@ -22,7 +22,7 @@ class AESCipher:
     def encrypt( self, raw ):
         raw = pad(raw)
         iv = os.urandom( AES.block_size )
-        cipher = AES.new( self.key, AES.MODE_CBC, iv ) #TODO: Are you really going to use CBC? Why?
+        cipher = AES.new( self.key, AES.MODE_CBC, iv ) #TODO: Are we really going to use CBC? Why?
         return iv + cipher.encrypt( raw )
 
     def decrypt( self, enc ):
