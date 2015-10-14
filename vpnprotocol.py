@@ -10,7 +10,7 @@ MODE_CLIENT = 1
 
 class Connection:
 
-    def __init__(self, server, port, mode=MODE_SERVER, printmode=False):
+    def __init__(self, server, port, ss, mode=MODE_SERVER, printmode=False):
         self.server = server
         self.port = port
         self.socket = socket.socket()
@@ -28,7 +28,7 @@ class Connection:
         self.is_connected = False
         self.read_thread = None
         self.printmode = printmode;
-        self.sharedsecret = "ANBT53MNV9&RL$74"
+        self.sharedsecret = ss
         self.keypair = RSA.generate(2048)
         self.publickey = self.keypair.publickey()
         self.AESObject = None
@@ -268,3 +268,4 @@ class Connection:
             self.is_connected = False
             print("All sockets closed!")
             print("Connection finished!")
+            quit()

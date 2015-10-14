@@ -5,8 +5,11 @@ connection = None
 print("Do you want to be a (s)erver or a (c)lient?")
 choice = input(">> ")
 
-if choice == "s": connection = vpnprotocol.Connection("localhost", 7890, printmode=True)
-elif choice == "c": connection = vpnprotocol.Connection("localhost", 7890, vpnprotocol.MODE_CLIENT, printmode=True)
+print("Input shared secret:")
+ss = input(">> ")
+
+if choice == "s": connection = vpnprotocol.Connection("localhost", 7890, ss, printmode=True)
+elif choice == "c": connection = vpnprotocol.Connection("localhost", 7890, ss, vpnprotocol.MODE_CLIENT, printmode=True)
 else:
     print("You rebel!")
     quit()
