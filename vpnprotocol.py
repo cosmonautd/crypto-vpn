@@ -5,6 +5,7 @@ import random
 import vpncrypto
 import os
 import sys
+import time
 
 MODE_SERVER = 0
 MODE_CLIENT = 1
@@ -252,6 +253,7 @@ class Connection:
                     self.client.send(encrypted_data)
                 elif self.mode == MODE_CLIENT:
                     self.socket.send(encrypted_data)
+                time.sleep(0.1)
             try:
                 if data[32:].decode() == "f#":
                     self.finish()

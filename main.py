@@ -37,7 +37,7 @@ class TinyVPN():
 
         #GLib.idle_add(self.update_tmpx);
 
-        """dialog = Setup(self.MainWindow)
+        dialog = Setup(self.MainWindow)
         response = dialog.run()
 
         if response == Gtk.ResponseType.OK:
@@ -45,7 +45,7 @@ class TinyVPN():
         elif response == Gtk.ResponseType.CANCEL:
             print("The Cancel button was clicked")
 
-        dialog.destroy()"""
+        dialog.destroy()
 
     def on_MainWindow_delete_event(self, widget, event):
         self.clean()

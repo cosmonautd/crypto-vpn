@@ -8,7 +8,7 @@ choice = input(">> ")
 print("Input shared secret:")
 ss = input(">> ")
 
-if choice == "s": connection = vpnprotocol.Connection("localhost", 7890, ss, printmode=True)
+if choice == "s": connection = vpnprotocol.Connection("192.168.0.103", 7890, ss, printmode=True)
 elif choice == "c": connection = vpnprotocol.Connection("localhost", 7890, ss, vpnprotocol.MODE_CLIENT, printmode=True)
 else:
     print("You rebel!")
