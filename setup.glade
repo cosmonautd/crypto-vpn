@@ -95,14 +95,20 @@
           <object class="GtkLabel" id="address_message">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
-            <property name="label" translatable="yes">Please, input IP address and port</property>
+            <property name="halign">center</property>
+            <property name="valign">center</property>
+            <property name="margin_left">5</property>
+            <property name="margin_right">5</property>
+            <property name="label" translatable="yes">Please, input the desired address</property>
+            <property name="width_chars">38</property>
+            <property name="max_width_chars">38</property>
             <attributes>
               <attribute name="scale" value="2"/>
             </attributes>
           </object>
           <packing>
             <property name="expand">False</property>
-            <property name="fill">True</property>
+            <property name="fill">False</property>
             <property name="position">0</property>
           </packing>
         </child>
@@ -110,7 +116,9 @@
           <object class="GtkEntry" id="ip_address_entry">
             <property name="visible">True</property>
             <property name="can_focus">True</property>
-            <property name="placeholder_text" translatable="yes">IP address</property>
+            <property name="max_length">15</property>
+            <property name="max_width_chars">15</property>
+            <property name="placeholder_text" translatable="yes">Your IP address</property>
           </object>
           <packing>
             <property name="expand">False</property>
@@ -123,7 +131,9 @@
             <property name="visible">True</property>
             <property name="can_focus">True</property>
             <property name="valign">start</property>
-            <property name="placeholder_text" translatable="yes">Port</property>
+            <property name="max_length">5</property>
+            <property name="max_width_chars">5</property>
+            <property name="placeholder_text" translatable="yes">Desired port</property>
           </object>
           <packing>
             <property name="expand">False</property>
