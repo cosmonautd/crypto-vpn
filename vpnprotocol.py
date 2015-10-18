@@ -35,6 +35,7 @@ class Connection:
         self.keypair = RSA.generate(2048)
         self.publickey = self.keypair.publickey()
         self.AESObject = None
+        self.received_buffer = []
 
     def start(self):
         print("Starting connection...")
@@ -264,12 +265,24 @@ class Connection:
         message = ""
         while not message == "f#" and self.connected():
             message = (self.read_encrypted()).decode()
+            self.received_buffer.append(message)
             if self.printmode:
                 if self.mode == MODE_SERVER:
                     print(self.client_addr, message, "\n>> ", end="")
                 elif self.mode == MODE_CLIENT:
                     print("(" + self.server + ")", message, "\n>> ", end="")
         self.finish()
+
+    def get_received_buffer(self):
+        aux = self.received_buffer
+        self.received_buffer = []
+        return aux
+
+    def get_server_ip(self):
+        return self.server
+
+    def get_client_ip(self):
+        return self.client_addr[0]
 
     def finish(self):
         if self.connected():
