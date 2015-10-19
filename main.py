@@ -170,7 +170,7 @@ class TinyVPN():
         else:
                 #writes message at the ChatArea
                 end_iter = self.text_buffer.get_end_iter()
-                self.text_buffer.insert(end_iter, "**Client not connected**\n")
+                self.text_buffer.insert(end_iter, "**Connection not established**\n")
 
     #def print_message(self):
 
