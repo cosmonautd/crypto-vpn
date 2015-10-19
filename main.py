@@ -40,6 +40,7 @@ class Setup(Gtk.Dialog):
         box = self.get_content_area()
         box.add(self.gtk.get_object("setup"))
 
+        #Objects
         self.server_radiobutton = self.gtk.get_object("server_radiobutton")
         self.client_radiobutton = self.gtk.get_object("client_radiobutton")
         self.address_message = self.gtk.get_object("address_message")
@@ -47,6 +48,7 @@ class Setup(Gtk.Dialog):
         self.port_entry = self.gtk.get_object("port_entry")
         self.shared_secret_entry = self.gtk.get_object("shared_secret_entry")
 
+        #Signals
         self.server_radiobutton.connect("toggled", self.on_mode_toggled, "server")
         self.client_radiobutton.connect("toggled", self.on_mode_toggled, "client")
         self.ip_address_entry.connect("changed", self.on_inputs_changed)
@@ -119,6 +121,11 @@ class TinyVPN():
         self.MessageEntry = self.gtk.get_object("MessageEntry")
         self.ChatArea = self.gtk.get_object("ChatArea")
 
+        self.acting_status = self.gtk.get_object("acting_status")
+        self.ip_status = self.gtk.get_object("ip_status")
+        self.port_status = self.gtk.get_object("port_status")
+        self.connection_status = self.gtk.get_object("connection_status")
+
         #Signals
         self.SendButton.connect("clicked", self.sendPressed)
         self.MessageEntry.connect("activate", self.sendPressed)
@@ -154,6 +161,7 @@ class TinyVPN():
         thread.daemon = True;
         thread.start();
         GLib.idle_add(self.reading_thread);
+        GLib.idle_add(self.update_status);
 
     def sendPressed(self, SendButton):
         if (self.vpn_connection.is_connected):
@@ -186,7 +194,7 @@ class TinyVPN():
                 if(self.vpn_connection.mode == vpnprotocol.MODE_CLIENT):
                     self.text_buffer.insert(end_iter, self.vpn_connection.get_server_ip()+": "+element+"\n")
                 elif(self.vpn_connection.mode == vpnprotocol.MODE_SERVER):
-                    self.text_buffer.insert(end_iter, self.vpn_connection.get_client_ip()+": "+element+"\n")
+                    self.text_buffer.insert(end_iter, self.vpn_connection.get_server_ip()+": "+element+"\n")
                 self.scroll_to_end()
 
         return True
@@ -195,6 +203,26 @@ class TinyVPN():
         insert_mark = self.ChatArea.get_buffer().get_insert()
         self.ChatArea.get_buffer().place_cursor(self.ChatArea.get_buffer().get_end_iter())
         self.ChatArea.scroll_to_mark(insert_mark , 0.0, True, 0.0, 1.0)
+
+    def update_status(self):
+        if(self.vpn_connection.is_connected):
+            self.connection_status.set_text("Connected!")
+            if(self.vpn_connection.mode == vpnprotocol.MODE_SERVER):
+                self.acting_status.set_text("SERVER")
+                self.ip_status.set_text(self.vpn_connection.get_server_ip())
+                self.port_status.set_text(str(self.vpn_connection.get_port()))
+
+            elif(self.vpn_connection.mode == vpnprotocol.MODE_CLIENT):
+                self.acting_status.set_text("CLIENT")
+                self.ip_status.set_text(self.vpn_connection.get_server_ip())
+                self.port_status.set_text(str(self.vpn_connection.get_port()))
+
+        else:
+            self.connection_status.set_text("NOT Connected!")
+            self.ip_status.set_text("")
+            self.port_status.set_text("")
+
+        return True
 
     def on_MainWindow_delete_event(self, widget, event):
         self.clean()

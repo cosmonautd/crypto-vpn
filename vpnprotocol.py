@@ -280,8 +280,8 @@ class Connection:
     def get_server_ip(self):
         return self.server
 
-    def get_client_ip(self):
-        return self.client_addr[0]
+    def get_port(self):
+        return self.port
 
     def finish(self):
         print("Finishing connection...")
