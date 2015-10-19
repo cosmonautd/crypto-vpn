@@ -187,8 +187,6 @@ class TinyVPN():
                     self.MessageEntry.set_text("")
                 elif(self.vpn_connection.mode == vpnprotocol.MODE_SERVER):
                     self.text_buffer.insert(end_iter, self.vpn_connection.get_client_ip()+": "+element+"\n")
-                    #clear textEntry
-                    self.MessageEntry.set_text("")
         return True
 
     def on_MainWindow_delete_event(self, widget, event):
