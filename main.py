@@ -172,7 +172,7 @@ class TinyVPN():
                 end_iter = self.text_buffer.get_end_iter()
                 self.text_buffer.insert(end_iter, "**Connection not established**\n")
 
-        scroll_to_end()
+        self.scroll_to_end()
 
     #def print_message(self):
 
@@ -185,12 +185,14 @@ class TinyVPN():
                 end_iter = self.text_buffer.get_end_iter()
                 if(self.vpn_connection.mode == vpnprotocol.MODE_CLIENT):
                     self.text_buffer.insert(end_iter, self.vpn_connection.get_server_ip()+": "+element+"\n")
-
                 elif(self.vpn_connection.mode == vpnprotocol.MODE_SERVER):
                     self.text_buffer.insert(end_iter, self.vpn_connection.get_client_ip()+": "+element+"\n")
+
+                self.scroll_to_end()
+
         return True
 
-    def scroll_to_end():
+    def scroll_to_end(self):
         insert_mark = self.ChatArea.get_buffer().get_insert()
         self.ChatArea.get_buffer().place_cursor(self.ChatArea.get_buffer().get_end_iter())
         self.ChatArea.scroll_to_mark(insert_mark , 0.0, True, 0.0, 1.0)
