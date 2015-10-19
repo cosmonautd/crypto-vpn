@@ -136,25 +136,21 @@ class TinyVPN():
 
         self.text_buffer = self.ChatArea.get_buffer()
 
-        #thread = threading.Thread(target=rx_polling, args=(atmega,));
-        #thread.daemon = True;
-        #thread.start();
-
-        #GLib.idle_add(self.update_tmpx);
-
+        self.setup_dialog_complete = False
         dialog = Setup(self.MainWindow)
         response = dialog.run()
         dialog.hide()
 
         if response == Gtk.ResponseType.OK:
+            self.setup_dialog_complete = True
             self.vpn_connection = vpnprotocol.Connection(dialog.get_ip(), dialog.get_port(), \
                                                 dialog.get_ss(), dialog.get_mode(), printmode=False)
+            self.start_things()
         elif response == Gtk.ResponseType.CANCEL:
-            print("Ok, still need to figure out how to close everything")
+            self.setup_dialog_complete = False
+            self.clean()
 
         dialog.destroy()
-
-        self.start_things()
 
     def start_things(self):
         thread = threading.Thread(target=self.vpn_connection.start, args=());
@@ -229,16 +225,19 @@ class TinyVPN():
         Gtk.main_quit()
 
     def clean(self):
-        if self.vpn_connection.connected():
-            self.vpn_connection.write_encrypted(bytes("f#", 'utf-8'))
-            self.vpn_connection.finish()
+        if self.setup_dialog_complete:
+            if self.vpn_connection.connected():
+                self.vpn_connection.write_encrypted(bytes("f#", 'utf-8'))
+                self.vpn_connection.finish()
+            else: pass
         else: pass
 
 if __name__ == "__main__":
     try:
         GObject.threads_init();
         t = TinyVPN()
-        Gtk.main()
+        if t.setup_dialog_complete:
+            Gtk.main()
 
     except KeyboardInterrupt:
         pass
