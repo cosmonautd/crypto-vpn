@@ -121,7 +121,7 @@ class TinyVPN():
 
         #Signals
         self.SendButton.connect("clicked", self.sendPressed)
-        self.SendButton.connect("activated", self.sendPressed)
+        self.SendButton.connect("activate", self.sendPressed)
 
         self.MainWindow = self.gtk.get_object("MainWindow")
         self.MainWindow.connect("delete-event", self.on_MainWindow_delete_event)
