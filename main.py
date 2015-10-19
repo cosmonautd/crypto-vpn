@@ -187,7 +187,6 @@ class TinyVPN():
                     self.text_buffer.insert(end_iter, self.vpn_connection.get_server_ip()+": "+element+"\n")
                 elif(self.vpn_connection.mode == vpnprotocol.MODE_SERVER):
                     self.text_buffer.insert(end_iter, self.vpn_connection.get_client_ip()+": "+element+"\n")
-
                 self.scroll_to_end()
 
         return True
