@@ -1,5 +1,6 @@
 from gi.repository import Gtk, GdkPixbuf, GObject, GLib
 import vpnprotocol
+import threading
 
 #TODO: create self.vpn_connection
 
@@ -56,7 +57,6 @@ class Setup(Gtk.Dialog):
 
         self.set_deletable(False)
         self.set_resizable(False)
-        self.show_all()
 
         self.received_buffer = []
 
@@ -80,31 +80,35 @@ class Setup(Gtk.Dialog):
         elif mode == "client":
             self.ip_address_entry.set_placeholder_text("Server's IP address")
 
+    def get_mode(self):
+        if self.server_radiobutton.get_active():
+            return vpnprotocol.MODE_SERVER
+        elif self.client_radiobutton.get_active():
+            return vpnprotocol.MODE_CLIENT
+
+    def get_ip(self):
+        return self.ip_address_entry.get_text()
+
+    def get_port(self):
+        try:
+            return int(self.port_entry.get_text())
+        except Exception:
+            return None
+
+    def get_ss(self):
+        return self.shared_secret_entry.get_text()
+
+    def change_stuff(self):
+        box = self.get_content_area()
+        box.remove(self.gtk.get_object("setup"))
+
 class TinyVPN():
     """
     """
 
     def __init__(self):
-        #self.vpn_connection = vpnprotocol.Connection("localhost", 7890, "123", printmode=True)
-
-        print("Do you want to be a (s)erver or a (c)lient?")
-        choice = input(">> ")
-
-        print("Input shared secret:")
-        ss = input(">> ")
-
-        if choice == "s": self.vpn_connection = vpnprotocol.Connection("localhost", 7890, ss, printmode=True)
-        elif choice == "c": self.vpn_connection = vpnprotocol.Connection("localhost", 7890, ss, vpnprotocol.MODE_CLIENT, printmode=True)
-        else:
-            print("You rebel!")
-            quit()
-        self.vpn_connection.start()
         """
         """
-        #reading thread
-        GLib.idle_add(self.reading_thread);
-
-
         self.gladefile = 'main.glade'
         self.gtk = Gtk.Builder()
         self.gtk.add_from_file(self.gladefile)
@@ -118,7 +122,6 @@ class TinyVPN():
         #Signals
         self.SendButton.connect("clicked", self.sendPressed)
 
-
         self.MainWindow = self.gtk.get_object("MainWindow")
         self.MainWindow.connect("delete-event", self.on_MainWindow_delete_event)
         self.MainWindow.show_all()
@@ -131,15 +134,25 @@ class TinyVPN():
 
         #GLib.idle_add(self.update_tmpx);
 
-        '''dialog = Setup(self.MainWindow)
+        dialog = Setup(self.MainWindow)
         response = dialog.run()
+        dialog.hide()
 
         if response == Gtk.ResponseType.OK:
-            print("The OK button was clicked")
+            self.vpn_connection = vpnprotocol.Connection(dialog.get_ip(), dialog.get_port(), \
+                                                dialog.get_ss(), dialog.get_mode(), printmode=True)
         elif response == Gtk.ResponseType.CANCEL:
-            print("The Cancel button was clicked")
+            print("Ok, still need to figure out how to close everything")
 
-        dialog.destroy()'''
+        dialog.destroy()
+
+        self.start_things()
+
+    def start_things(self):
+        thread = threading.Thread(target=self.vpn_connection.start, args=());
+        thread.daemon = True;
+        thread.start();
+        GLib.idle_add(self.reading_thread);
 
     def sendPressed(self, SendButton):
         if (self.vpn_connection.is_connected):
