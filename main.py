@@ -121,7 +121,7 @@ class TinyVPN():
 
         #Signals
         self.SendButton.connect("clicked", self.sendPressed)
-        self.SendButton.connect("activate", self.sendPressed)
+        self.MessageEntry.connect("activate", self.sendPressed)
 
         self.MainWindow = self.gtk.get_object("MainWindow")
         self.MainWindow.connect("delete-event", self.on_MainWindow_delete_event)
@@ -200,7 +200,6 @@ class TinyVPN():
             self.vpn_connection.write_encrypted(bytes("f#", 'utf-8'))
             self.vpn_connection.finish()
         else: pass
-
 
 if __name__ == "__main__":
     try:
