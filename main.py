@@ -140,7 +140,7 @@ class TinyVPN():
 
         if response == Gtk.ResponseType.OK:
             self.vpn_connection = vpnprotocol.Connection(dialog.get_ip(), dialog.get_port(), \
-                                                dialog.get_ss(), dialog.get_mode(), printmode=True)
+                                                dialog.get_ss(), dialog.get_mode(), printmode=False)
         elif response == Gtk.ResponseType.CANCEL:
             print("Ok, still need to figure out how to close everything")
 
@@ -195,7 +195,10 @@ class TinyVPN():
         Gtk.main_quit()
 
     def clean(self):
-        pass;
+        if self.vpn_connection.connected():
+            self.vpn_connection.write_encrypted(bytes("f#", 'utf-8'))
+            self.vpn_connection.finish()
+        else: pass
 
 
 if __name__ == "__main__":

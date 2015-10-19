@@ -221,13 +221,17 @@ class Connection:
             print ("ACK sent to the server")
 
     def read_encrypted(self):
+        encrypted_data = []
         if self.AESObject:
             if self.connected():
                 data = ""
-                if self.mode == MODE_SERVER:
-                    encrypted_data = self.client.recv(1024)
-                elif self.mode == MODE_CLIENT:
-                    encrypted_data = self.socket.recv(1024)
+                try:
+                    if self.mode == MODE_SERVER:
+                        encrypted_data = self.client.recv(1024)
+                    elif self.mode == MODE_CLIENT:
+                        encrypted_data = self.socket.recv(1024)
+                except socket.error:
+                    pass
 
                 if len(encrypted_data) > 0:
                     data = self.AESObject.decrypt(encrypted_data)
@@ -255,15 +259,10 @@ class Connection:
                 elif self.mode == MODE_CLIENT:
                     self.socket.send(encrypted_data)
                 time.sleep(0.1)
-            try:
-                if data[32:].decode() == "f#":
-                    self.finish()
-            except UnicodeDecodeError:
-                pass
 
     def read_encrypted_loop(self):
         message = ""
-        while not message == "f#" and self.connected():
+        while self.connected():
             message = (self.read_encrypted()).decode()
             self.received_buffer.append(message)
             if self.printmode:
@@ -271,7 +270,7 @@ class Connection:
                     print(self.client_addr, message, "\n>> ", end="")
                 elif self.mode == MODE_CLIENT:
                     print("(" + self.server + ")", message, "\n>> ", end="")
-        self.finish()
+        #self.finish()
 
     def get_received_buffer(self):
         aux = self.received_buffer
@@ -285,13 +284,11 @@ class Connection:
         return self.client_addr[0]
 
     def finish(self):
-        if self.connected():
-            print("Finishing connection...")
-            print("Closing all sockets...")
-            if self.mode == MODE_SERVER:
-                self.client.close()
-            self.socket.close()
-            self.is_connected = False
-            print("All sockets closed!")
-            print("Connection finished!")
-            quit()
+        print("Finishing connection...")
+        print("Closing all sockets...")
+        if self.mode == MODE_SERVER:
+            self.client.close()
+        self.socket.close()
+        self.is_connected = False
+        print("All sockets closed!")
+        print("Connection finished!")
