@@ -6,6 +6,7 @@ import vpncrypto
 import os
 import sys
 import time
+import binascii
 
 MODE_SERVER = 0
 MODE_CLIENT = 1
@@ -92,70 +93,81 @@ class Connection:
             pass
 
     def auth(self):
-        print("Authenticading connection...")
+        print("Authenticating connection...")
         """
         """
         if self.mode == MODE_SERVER:
             SPuK = self.publickey.exportKey()
             rs1 = bytes(os.urandom(4))
-            print("Generated random string:", rs1, "Length:", len(rs1))
-            print("Sending public key + rs1...")
-            print(SPuK.decode())
+            print("Generated nonce rs1:", binascii.hexlify(rs1).decode().upper(), "Length:", len(rs1))
+            print("Sending nonce rs1...")
             self.write(rs1)
-            print("Public key + rs1 sent!")
+            print("Nonce rs1 sent!")
 
-            print("Waiting for client's public key...")
+            print("Waiting for nonce rs2 and client's public key...")
             message = self.read()
             rs2 = message[:4]
             CPuK = message[4:]
-            print("Received random string:", rs2, "Length:", len(rs2))
+            print("Received nonce rs2:", binascii.hexlify(rs2).decode().upper(), "Length:", len(rs2))
             print("Received client's public key!")
             print(CPuK.decode())
 
             serversign = vpncrypto.sha256(rs2+(self.sharedsecret).encode())
-            print("Generated signature:", serversign, "Length:", len(serversign))
+            print("Generated server signature (sha(rs2+ss)):", \
+                    binascii.hexlify(serversign).decode().upper(), \
+                    "Length:", len(serversign))
+            print("Sending signature...")
             self.write(serversign)
+            print("Signature sent")
 
+            print("Waiting for client's signature (sha(rs1+ss))...")
             clientsign = self.read()
-            print("Received signature:", clientsign, "Length:", len(clientsign))
+            print("Received client's signature (sha(rs1+ss)):", \
+                    binascii.hexlify(clientsign).decode().upper(), \
+                    "Length:", len(clientsign))
 
             self.clientpublickey = RSA.importKey(CPuK)
+            print("Verifying client's signature...")
             if clientsign == vpncrypto.sha256(rs1+self.sharedsecret.encode()):
                 print("Client authenticated!")
             else:
                 print("Client not authenticated!")
                 self.finish()
-            print(vpncrypto.sha256(rs1+self.sharedsecret.encode()))
 
         elif self.mode == MODE_CLIENT:
             CPuK = self.publickey.exportKey()
-            print("Waiting for server's public key...")
+            print("Waiting for nonce rs1...")
             message = self.read()
             rs1 = message
-            print("Received server's public key!")
-            print("Received random string:", rs1, "Length:", len(rs1))
+            print("Received nonce rs1:", binascii.hexlify(rs1).decode().upper(), "Length:", len(rs1))
 
             rs2 = bytes(os.urandom(4))
-            print("Generated random string:", rs2, "Length:", len(rs2))
-            print("Sending public key...")
-            print(CPuK.decode())
+            print("Generated nonce rs2:", binascii.hexlify(rs2).decode().upper(), "Length:", len(rs2))
+            print("Sending public key and nonce rs2...")
             self.write(rs2+CPuK)
             print("Public key sent!")
+            print(CPuK.decode())
 
+            print("Waiting for server's signature (sha(rs2+ss))...")
             serversign = self.read()
-
-            print("Received signature:", serversign, "Length:", len(serversign))
+            print("Received servers's signature (sha(rs2+ss)):", \
+                    binascii.hexlify(serversign).decode().upper(), \
+                    "Length:", len(serversign))
 
             clientsign = vpncrypto.sha256(rs1+(self.sharedsecret).encode())
-            print("Generated signature:", clientsign, "Length:", len(clientsign))
+            print("Generated client signature (sha(rs1+ss)):", \
+                    binascii.hexlify(clientsign).decode().upper(), \
+                    "Length:", len(clientsign))
+            print("Sending signature...")
             self.write(clientsign)
+            print("Signature sent")
 
+            print("Verifying servers's signature...")
             if serversign == vpncrypto.sha256(rs2+self.sharedsecret.encode()):
                 print("Server authenticated!")
             else:
                 print("Server not authenticated!")
                 self.finish()
-            print(vpncrypto.sha256(rs2+self.sharedsecret.encode()))
 
     def exchangeKeys(self):
         print ("\nExchanging AES keys...")
