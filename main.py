@@ -5,6 +5,9 @@ import threading
 #TODO: create self.vpn_connection
 
 def is_valid_ip(string):
+    """
+        Check the integrity of the IP provided by the user.
+    """
     try:
         if len(string) == 0: return False
         points = string.count(".")
@@ -20,6 +23,9 @@ def is_valid_ip(string):
         return False
 
 def is_valid_port(string):
+    """
+        Check the integrity of the port provided by the user.
+    """
     try:
         if len(string) == 0: return False
         if int(string) > 65535: return False
@@ -63,6 +69,9 @@ class Setup(Gtk.Dialog):
         self.received_buffer = []
 
     def on_inputs_changed(self, entry):
+        """
+
+        """
         ip_address = self.ip_address_entry.get_text()
         port = self.port_entry.get_text()
         shared_secret = self.shared_secret_entry.get_text()
@@ -83,21 +92,33 @@ class Setup(Gtk.Dialog):
             self.ip_address_entry.set_placeholder_text("Server's IP address")
 
     def get_mode(self):
+        """
+            Get the mode (server/client)
+        """
         if self.server_radiobutton.get_active():
             return vpnprotocol.MODE_SERVER
         elif self.client_radiobutton.get_active():
             return vpnprotocol.MODE_CLIENT
 
     def get_ip(self):
+        """
+            Retunrs the IP
+        """
         return self.ip_address_entry.get_text()
 
     def get_port(self):
+        """
+            Returns the port
+        """
         try:
             return int(self.port_entry.get_text())
         except Exception:
             return None
 
     def get_ss(self):
+        """
+            Get shared secret
+        """
         return self.shared_secret_entry.get_text()
 
     def change_stuff(self):
@@ -160,6 +181,9 @@ class TinyVPN():
         GLib.idle_add(self.update_status);
 
     def sendPressed(self, SendButton):
+        """
+            Sends a message every time that the "send" button is pressed.
+        """
         if (self.vpn_connection.is_connected):
             if (len(self.MessageEntry.get_text()) > 0):
                 #Sends message
@@ -182,6 +206,10 @@ class TinyVPN():
 
 
     def reading_thread(self):
+        """
+            Read the received message buffer and writes the the received messages 
+            on the chat entry
+        """
         self.received_buffer = self.vpn_connection.get_received_buffer()
         if(len(self.received_buffer) != []):
             for element in self.received_buffer:
@@ -196,11 +224,18 @@ class TinyVPN():
         return True
 
     def scroll_to_end(self):
+        """
+            Keep the message entry box scrolled to the last message
+        """
         insert_mark = self.ChatArea.get_buffer().get_insert()
         self.ChatArea.get_buffer().place_cursor(self.ChatArea.get_buffer().get_end_iter())
         self.ChatArea.scroll_to_mark(insert_mark , 0.0, True, 0.0, 1.0)
 
     def update_status(self):
+        """
+            Check connection than prints connection status, IP and port in
+            the main window
+        """
         if(self.vpn_connection.is_connected):
             self.connection_status.set_text("Connected!")
             if(self.vpn_connection.mode == vpnprotocol.MODE_SERVER):
@@ -225,6 +260,10 @@ class TinyVPN():
         Gtk.main_quit()
 
     def clean(self):
+        """
+            Send acknowledgement to the other end about the end of the communication
+            and than closes the connection.
+        """
         if self.setup_dialog_complete:
             if self.vpn_connection.connected():
                 self.vpn_connection.write_encrypted(bytes("f#", 'utf-8'))

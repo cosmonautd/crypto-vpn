@@ -39,6 +39,10 @@ class Connection:
         self.received_buffer = []
 
     def start(self):
+        """
+            Start socket connection, authenticate server and client and exchange
+            keys between server and client
+        """
         print("Starting connection...")
         if self.mode == MODE_SERVER:
             print("Binding server address and port...")
@@ -56,6 +60,7 @@ class Connection:
             print("Connection accepted!")
         print("Starting authentication protocol!")
         self.auth()
+        print("Starting key exchange protocol")
         self.exchangeKeys()
         try:
             self.read_thread = threading.Thread(target=self.read_encrypted_loop, args=())
@@ -67,6 +72,9 @@ class Connection:
         return self.is_connected
 
     def read(self):
+        """
+            Reads data thgough the socket
+        """
         if self.connected():
             data = ""
             if self.mode == MODE_SERVER:
@@ -81,6 +89,9 @@ class Connection:
             return data
 
     def write(self, data):
+        """
+        Sends data through the socket
+        """
         if self.connected():
             if self.mode == MODE_SERVER:
                 self.client.send(data)
@@ -170,6 +181,12 @@ class Connection:
                 self.finish()
 
     def exchangeKeys(self):
+        """"
+            As server: generate AES key and waits for the acknowledgement from
+                        the client
+            As client: receives AES key from the server, check integrity and
+                        than send acknowledgement to the server
+        """
         print ("\nExchanging AES keys...")
         if self.mode == MODE_SERVER:
             print ("Generating AES key")
@@ -228,6 +245,9 @@ class Connection:
             print ("ACK sent to the server")
 
     def read_encrypted(self):
+        """
+            Reads received encrypted data and than decrypts using the AES key
+        """
         encrypted_data = []
         if self.AESObject:
             if self.connected():
@@ -257,6 +277,9 @@ class Connection:
                 return data
 
     def write_encrypted(self, data):
+        """
+            Sends encrypted data through the socket
+        """
         if self.AESObject:
             if self.connected():
                 data = vpncrypto.sha256(data) + data
@@ -268,6 +291,10 @@ class Connection:
                 time.sleep(0.1)
 
     def read_encrypted_loop(self):
+        """
+            Function called by a thread that keep listening for new messages\
+            until the connection is closed
+        """
         message = ""
         while self.connected():
             message = (self.read_encrypted()).decode()
@@ -280,14 +307,23 @@ class Connection:
         #self.finish()
 
     def get_received_buffer(self):
+        """
+            Get the buffer of received messages and than clean the buffer
+        """
         aux = self.received_buffer
         self.received_buffer = []
         return aux
 
     def get_server_ip(self):
+        """
+            Returns the server IP
+        """
         return self.server
 
     def get_port(self):
+        """
+            Returns the port used in the communication
+        """
         return self.port
 
     def finish(self):
