@@ -15,6 +15,7 @@ MODE_CLIENT = 1
 class Connection:
 
     def __init__(self, server, port, ss, mode=MODE_SERVER, printmode=False):
+        self.unpacker = Struct("B")
         self.server = server
         self.port = port
         self.socket = socket.socket()
@@ -41,7 +42,7 @@ class Connection:
 
         self.generator = 2
         self.prime = 0xFFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74020BBEA63B139B22514A08798E3404DDEF9519B3CD3A431B302B0A6DF25F14374FE1356D6D51C245E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7EDEE386BFB5A899FA5AE9F24117C4B1FE649286651ECE45B3DC2007CB8A163BF0598DA48361C55D39A69163FA8FD24CF5F83655D23DCA3AD961C62F356208552BB9ED529077096966D670C354E4ABC9804F1746C08CA18217C32905E462E36CE3BE39E772C180E86039B2783A2EC07A28FB5C55DF06F4C52C9DE2BCBF6955817183995497CEA956AE515D2261898FA051015728E5A8AAAC42DAD33170D04507A33A85521ABDF1CBA64ECFB850458DBEF0A8AEA71575D060C7DB3970F85A6E1E4C7ABF5AE8CDB0933D71E8C94E04A25619DCEE3D2261AD2EE6BF12FFA06D98A0864D87602733EC86A64521F2B18177B200CBBE117577A615D6C770988C0BAD946E208E24FA074E5AB3143DB5BFCE0FD108E4B82D120A92108011A723C12A787E6D788719A10BDBA5B2699C327186AF4E23C1A946834B6150BDA2583E9CA2AD44CE8DBBBC2DB04DE8EF92E8EFC141FBECAA6287C59474E6BC05D99B2964FA090C3A2233BA186515BE7ED1F612970CEE2D7AFB81BDD762170481CD0069127D5B05AA993B4EA988D8FDDC186FFB7DC90A6C08F4DF435C934063199FFFFFFFFFFFFFFFF
-        self.key_size = 512
+        self.key_size = 64
         self.DH_private_key = self.gen_DHPrK(self.key_size)
         self.DH_public_key = self.gen_DHPuK()
 
@@ -110,13 +111,13 @@ class Connection:
             pass
 
     def gen_DHPrK(self, DH_key_size):
-        return 14#bytes(os.urandom(DH_key_size)) #TODO: remove hardcoded "random"
+        return int.from_bytes(os.urandom(DH_key_size), byteorder='big') #TODO: remove hardcoded "random"
 
     def gen_DHPuK(self):
-        return pow(self.generator,self.DH_private_key ,self.prime)
+        return pow(self.generator,self.DH_private_key,self.prime)
 
     def gen_AES_key(self,half_key):
-        return pow(half_key,self.DH_private_key,self.prime)
+        return pow(int.from_bytes(half_key, byteorder='big'),self.DH_private_key,self.prime)
 
     def auth(self):
         print("Authenticating connection...")
@@ -138,9 +139,26 @@ class Connection:
             rs2 = bytes(os.urandom(4))
             print("Generated nonce rs2:", binascii.hexlify(rs1).decode().upper(), "Length:", len(rs2))
 
-            challenge1 = rs2+self.clientpublickey.encrypt(vpncrypto.sha256(rs1+self.sharedsecret.encode()+bytes(self.DH_public_key)), 0.0)[0]
+
+            print("\n\sha len:\n")
+            print(len(vpncrypto.sha256(rs1+self.sharedsecret.encode())))
+            print("\n\n")
+
+            print("\n\key:\n")
+            print(self.DH_public_key)
+            print("\n\n")
+
+            print("\n\key_len:\n")
+            print(len(bytes([self.DH_public_key])))
+            print("\n\n")
+
+            challenge1 = rs2+self.clientpublickey.encrypt(vpncrypto.sha256(rs1+self.sharedsecret.encode())+bytes([self.DH_public_key]), 0.0)[0]
             print("Sending Server Public key...")
             self.write(SPuK)
+
+            print("\n\nChallenge 1:\n")
+            print(challenge1)
+            print("\n\n")
 
             time.sleep(1)
             print("Sending challenge1 = rs2+E(CPuK,sha(rs1||sharedsecret)+g^b mod p)...")
@@ -148,20 +166,21 @@ class Connection:
 
 
 
-            print("\n\nChallenge 1 RAW:\n"+str(len(vpncrypto.sha256(rs1+self.sharedsecret.encode()+bytes(self.DH_public_key)))))
-            print(vpncrypto.sha256(rs1+self.sharedsecret.encode()+bytes(self.DH_public_key)))
+            print("\n\nChallenge 1 RAW:\n"+str(len(vpncrypto.sha256(rs1+self.sharedsecret.encode()))))
+            print(vpncrypto.sha256(rs1+self.sharedsecret.encode()+bytes([self.DH_public_key])))
             print("\n\n")
 
             print("\n\nChallenge 1:\n")
             print(challenge1)
             print("\n\n")
-
+            time.sleep(0.2)
             print("Waiting for client's response E(SPuK,sha(rs2||sharedsecret)+g^a mod p)...")
             challenge2 = self.read()
             #challenge2 = self.keypair.decrypt(challenge2)
 
             print("\n\n\n")
-            print("length challenge2:"+challenge2)
+            print("challenge2:")
+            print(challenge2)
             print("\n\n\n")
 
 
