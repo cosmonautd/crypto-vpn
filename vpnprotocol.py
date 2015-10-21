@@ -7,6 +7,7 @@ import os
 import sys
 import time
 import binascii
+from struct import Struct
 
 MODE_SERVER = 0
 MODE_CLIENT = 1
@@ -145,11 +146,27 @@ class Connection:
             print("Sending challenge1 = rs2+E(CPuK,sha(rs1||sharedsecret)+g^b mod p)...")
             self.write(challenge1)
 
-            print("Waiting for client's response E(SPuK,sha(rs2||sharedsecret)+g^a mod p)...")
-            challenge2 = self.keypair.decrypt(self.read())
 
-            integrity = challenge2[:256]
-            half_key = challenge2[256:]
+
+            print("\n\nChallenge 1 RAW:\n"+str(len(vpncrypto.sha256(rs1+self.sharedsecret.encode()+bytes(self.DH_public_key)))))
+            print(vpncrypto.sha256(rs1+self.sharedsecret.encode()+bytes(self.DH_public_key)))
+            print("\n\n")
+
+            print("\n\nChallenge 1:\n")
+            print(challenge1)
+            print("\n\n")
+
+            print("Waiting for client's response E(SPuK,sha(rs2||sharedsecret)+g^a mod p)...")
+            challenge2 = self.read()
+            #challenge2 = self.keypair.decrypt(challenge2)
+
+            print("\n\n\n")
+            print("length challenge2:"+challenge2)
+            print("\n\n\n")
+
+
+            integrity = challenge2[:32]
+            half_key = challenge2[32:]
 
             print("\n\n\n\n\n")
             print(half_key)
@@ -182,19 +199,39 @@ class Connection:
 
             print("Waiting for server's public key...")
             SPuK = self.read()
+
+            print("\n\n")
+            print(SPuK)
+            print("\n\n")
+
             self.serverpublickey = RSA.importKey(SPuK)
 
 
             print("Waiting for server's response rs2+E(CPuK,sha(rs1||sharedsecret)+g^b mod p)...")
             challenge1 = self.read()
 
-            rs2 = challenge1[:4]
-            decry = challenge1[4:]
-            decry = self.keypair.decrypt(decry)
-            integrity = decry[:256]
-            half_key = decry[256:]
+            print("\n\nChallenge 1:\n")
+            print(challenge1)
+            print("\n\n")
 
-            print("\n\n\n\n\n")
+            rs2 = challenge1[:4]
+
+            print("\n\nrs2:\n")
+            print(rs2)
+            print("\n\n")
+
+
+            decry = challenge1[4:]
+
+            print("\n\ndecry:\n")
+            print(decry)
+            print("\n\n")
+
+            decry = self.keypair.decrypt(decry)
+            integrity = decry[:32]
+            half_key = decry[32:]
+
+            print("\n\n\n\n\ndecry decrypted")
             print(decry)
             print("\n\n\n\n\n")
 
@@ -205,6 +242,10 @@ class Connection:
                 self.finish()
 
             challenge2 = self.serverpublickey.encrypt(vpncrypto.sha256(rs2+self.sharedsecret.encode()+bytes(self.DH_public_key)), 0.0)[0]
+
+            print("\n\nChallenge 2:\n")
+            print(challenge2)
+            print("\n\n")
 
             print("Sending challenge = E(SPuK,sha(rs2||sharedsecret)+g^b mod p)...")
             self.write(challenge2)
