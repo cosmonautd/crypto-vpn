@@ -109,140 +109,84 @@ class Connection:
         """
         if self.mode == MODE_SERVER:
             SPuK = self.publickey.exportKey()
-            rs1 = bytes(os.urandom(4))
-            print("Generated nonce rs1:", binascii.hexlify(rs1).decode().upper(), "Length:", len(rs1))
-            print("Sending nonce rs1...")
-            self.write(rs1)
-            print("Nonce rs1 sent!")
+            #TODO: Generate b
 
-            print("Waiting for nonce rs2 and client's public key...")
+            print("Waiting for nonce rs1 and client's public key...")
             message = self.read()
-            rs2 = message[:4]
+            rs1 = message[:4]
             CPuK = message[4:]
-            print("Received nonce rs2:", binascii.hexlify(rs2).decode().upper(), "Length:", len(rs2))
+            print("Received nonce rs1:", binascii.hexlify(rs1).decode().upper(), "Length:", len(rs2))
             print("Received client's public key!")
             print(CPuK.decode())
 
-            serversign = vpncrypto.sha256(rs2+(self.sharedsecret).encode())
-            print("Generated server signature (sha(rs2+ss)):", \
-                    binascii.hexlify(serversign).decode().upper(), \
-                    "Length:", len(serversign))
-            print("Sending signature...")
-            self.write(serversign)
-            print("Signature sent")
-
-            print("Waiting for client's signature (sha(rs1+ss))...")
-            clientsign = self.read()
-            print("Received client's signature (sha(rs1+ss)):", \
-                    binascii.hexlify(clientsign).decode().upper(), \
-                    "Length:", len(clientsign))
-
             self.clientpublickey = RSA.importKey(CPuK)
-            print("Verifying client's signature...")
-            if clientsign == vpncrypto.sha256(rs1+self.sharedsecret.encode()):
+
+            rs2 = bytes(os.urandom(4))
+            print("Generated nonce rs2:", binascii.hexlify(rs1).decode().upper(), "Length:", len(rs2))
+
+            challenge1 = rs2+self.clientpublickey.encrypt(vpncrypto.sha256(rs1+self.sharedsecret.encode()+g^b mod p), 0.0)[0] #TODO: chage 'g^b mod p' for real values
+            print("Sending Server Public key...")
+            self.write(SPuK)
+            print("Sending challenge1 = rs2+E(CPuK,sha(rs1||sharedsecret)+g^b mod p)...")
+            self.write(challenge1)
+
+            print("Waiting for client's response E(SPuK,sha(rs2||sharedsecret)+g^a mod p)...")
+            challenge2 = self.read()
+
+            integrity = challenge1[:***] #TODO: change *** for len(sha(rs1+ss))
+            half_key = challenge1[***:]
+
+            if integrity == vpncrypto.sha256(rs2+self.sharedsecret.encode()):
                 print("Client authenticated!")
             else:
                 print("Client not authenticated!")
                 self.finish()
 
+            #TODO: calculate full_key = 'g^a*b mod p' = (half_key^b)
+            #TODO: destroy b
+
+            print ("AES key aquired")
+            self.AESObject = vpncrypto.AESCipher(full_key)
+            print ("AES obeject created")
+
         elif self.mode == MODE_CLIENT:
             CPuK = self.publickey.exportKey()
-            print("Waiting for nonce rs1...")
-            message = self.read()
-            rs1 = message
-            print("Received nonce rs1:", binascii.hexlify(rs1).decode().upper(), "Length:", len(rs1))
 
-            rs2 = bytes(os.urandom(4))
-            print("Generated nonce rs2:", binascii.hexlify(rs2).decode().upper(), "Length:", len(rs2))
-            print("Sending public key and nonce rs2...")
-            self.write(rs2+CPuK)
+            #TODO: Generate a
+
+            rs1 = bytes(os.urandom(4))
+            print("Generated nonce rs1:", binascii.hexlify(rs1).decode().upper(), "Length:", len(rs1))
+            print("Sending public key and nonce rs1...")
+            self.write(rs1+CPuK)
             print("Public key sent!")
             print(CPuK.decode())
 
-            print("Waiting for server's signature (sha(rs2+ss))...")
-            serversign = self.read()
-            print("Received servers's signature (sha(rs2+ss)):", \
-                    binascii.hexlify(serversign).decode().upper(), \
-                    "Length:", len(serversign))
+            print("Waiting for server's public key...")
+            SPuK = self.read()
+            self.serverpublickey = RSA.importKey(SPuK)
 
-            clientsign = vpncrypto.sha256(rs1+(self.sharedsecret).encode())
-            print("Generated client signature (sha(rs1+ss)):", \
-                    binascii.hexlify(clientsign).decode().upper(), \
-                    "Length:", len(clientsign))
-            print("Sending signature...")
-            self.write(clientsign)
-            print("Signature sent")
 
-            print("Verifying servers's signature...")
-            if serversign == vpncrypto.sha256(rs2+self.sharedsecret.encode()):
+            print("Waiting for server's response rs2+E(CPuK,sha(rs1||sharedsecret)+g^b mod p)...")
+            challenge1 = self.read()
+
+            rs2 = challenge1[:4]
+            integrity = challenge1[4:***] #TODO: change *** for len(sha(rs1+ss)+4)
+            half_key = challenge1[***:]
+
+            if integrity == vpncrypto.sha256(rs1+self.sharedsecret.encode()):
                 print("Server authenticated!")
             else:
                 print("Server not authenticated!")
                 self.finish()
 
-    def exchangeKeys(self):
-        """"
-            As server: generate AES key and waits for the acknowledgement from
-                        the client
-            As client: receives AES key from the server, check integrity and
-                        than send acknowledgement to the server
-        """
-        print ("\nExchanging AES keys...")
-        if self.mode == MODE_SERVER:
-            print ("Generating AES key")
-            self.AESKey = bytes(os.urandom(16))
-            print ("AESkey Generated, AES")
+            challenge2 = self.serverpublickey.encrypt(vpncrypto.sha256(rs2+self.sharedsecret.encode()+g^a mod p), 0.0)[0] #TODO: chage 'g^a mod p' for real values
 
-            AESObject = vpncrypto.AESCipher(self.AESKey)
+            #TODO: calculate full_key = 'g^b*a mod p' = (half_key^a)
+            #TODO: destroy a
+
+            print ("AES key aquired")
+            self.AESObject = vpncrypto.AESCipher(full_key)
             print ("AES obeject created")
-
-            AESCipher = self.clientpublickey.encrypt(self.AESKey+vpncrypto.sha256(self.AESKey+self.sharedsecret.encode()), 0.0)[0]
-            print ("AES key Encrypted")
-
-            print ("Sending Encrypted AES key.")
-            self.write(AESCipher)
-            print ("Encrypted AES key sent")
-
-            print("Waiting for ACK")
-            ACK = self.read()
-            print ("ACK received.")
-
-            print ("Decrypting ACK")
-            decry = AESObject.decrypt(ACK)  #TODO: Change variable name
-            rs3 = decry[:4]
-            shaRs = decry[4:]
-
-            if(vpncrypto.sha256(rs3) == shaRs):
-                print ("AES key sent with success!")
-                self.AESObject = AESObject
-            else:
-                print ("Error sending AESKey! Closing connection!")
-                self.finish()
-
-        elif self.mode == MODE_CLIENT:
-
-            print ("Receiving AES key from the server")
-            rawData = self.read()
-            print ("AES key from the server Received.")
-
-            print ("Checking AES key integrity")
-            decryption = self.keypair.decrypt(rawData)
-            self.AESKey = decryption[:16]
-            cipherShaAESKey = decryption[16:]
-
-            if (vpncrypto.sha256(self.AESKey+self.sharedsecret.encode()) == cipherShaAESKey):
-                print ("AES key authenticated and aquired")
-                self.AESObject = vpncrypto.AESCipher(self.AESKey)
-                print ("AES obeject created")
-            else:
-                print ("Integrity check failed, closing connection!")
-                self.finish()
-
-            print("Generating ACK for received AES key")
-            rs3 = bytes(os.urandom(4))
-            ACK = self.AESObject.encrypt(rs3+vpncrypto.sha256(rs3))
-            self.write(ACK)
-            print ("ACK sent to the server")
 
     def read_encrypted(self):
         """
