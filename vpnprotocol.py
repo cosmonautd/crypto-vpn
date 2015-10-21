@@ -42,7 +42,7 @@ class Connection:
         self.prime = 0xFFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74020BBEA63B139B22514A08798E3404DDEF9519B3CD3A431B302B0A6DF25F14374FE1356D6D51C245E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7EDEE386BFB5A899FA5AE9F24117C4B1FE649286651ECE45B3DC2007CB8A163BF0598DA48361C55D39A69163FA8FD24CF5F83655D23DCA3AD961C62F356208552BB9ED529077096966D670C354E4ABC9804F1746C08CA18217C32905E462E36CE3BE39E772C180E86039B2783A2EC07A28FB5C55DF06F4C52C9DE2BCBF6955817183995497CEA956AE515D2261898FA051015728E5A8AAAC42DAD33170D04507A33A85521ABDF1CBA64ECFB850458DBEF0A8AEA71575D060C7DB3970F85A6E1E4C7ABF5AE8CDB0933D71E8C94E04A25619DCEE3D2261AD2EE6BF12FFA06D98A0864D87602733EC86A64521F2B18177B200CBBE117577A615D6C770988C0BAD946E208E24FA074E5AB3143DB5BFCE0FD108E4B82D120A92108011A723C12A787E6D788719A10BDBA5B2699C327186AF4E23C1A946834B6150BDA2583E9CA2AD44CE8DBBBC2DB04DE8EF92E8EFC141FBECAA6287C59474E6BC05D99B2964FA090C3A2233BA186515BE7ED1F612970CEE2D7AFB81BDD762170481CD0069127D5B05AA993B4EA988D8FDDC186FFB7DC90A6C08F4DF435C934063199FFFFFFFFFFFFFFFF
         self.key_size = 512
         self.DH_private_key = self.gen_DHPrK(self.key_size)
-	#self.DH_public_key = self.gen_DHPuK()
+        self.DH_public_key = self.gen_DHPuK()
 
     def start(self):
         """
@@ -109,13 +109,13 @@ class Connection:
             pass
 
     def gen_DHPrK(self, DH_key_size):
-        return bytes(os.urandom(DH_key_size))
+        return 14#bytes(os.urandom(DH_key_size)) #TODO: remove hardcoded "random"
 
-    def gen_DHPuK(self, DH_key_size):
+    def gen_DHPuK(self):
         return pow(self.generator,self.DH_private_key ,self.prime)
 
     def gen_AES_key(self,half_key):
-        return pow(half_key,self.DH_private_key,new_key,self.prime)
+        return pow(half_key,self.DH_private_key,self.prime)
 
     def auth(self):
         print("Authenticating connection...")
@@ -137,17 +137,23 @@ class Connection:
             rs2 = bytes(os.urandom(4))
             print("Generated nonce rs2:", binascii.hexlify(rs1).decode().upper(), "Length:", len(rs2))
 
-            challenge1 = rs2+self.clientpublickey.encrypt(vpncrypto.sha256(rs1+self.sharedsecret.encode()+self.DH_public_key), 0.0)[0]
+            challenge1 = rs2+self.clientpublickey.encrypt(vpncrypto.sha256(rs1+self.sharedsecret.encode()+bytes(self.DH_public_key)), 0.0)[0]
             print("Sending Server Public key...")
             self.write(SPuK)
+
+            time.sleep(1)
             print("Sending challenge1 = rs2+E(CPuK,sha(rs1||sharedsecret)+g^b mod p)...")
             self.write(challenge1)
 
             print("Waiting for client's response E(SPuK,sha(rs2||sharedsecret)+g^a mod p)...")
-            challenge2 = self.read()
+            challenge2 = self.keypair.decrypt(self.read())
 
-            integrity = challenge1[:256]
-            half_key = challenge1[256:]
+            integrity = challenge2[:256]
+            half_key = challenge2[256:]
+
+            print("\n\n\n\n\n")
+            print(half_key)
+            print("\n\n\n\n\n")
 
             if integrity == vpncrypto.sha256(rs2+self.sharedsecret.encode()):
                 print("Client authenticated!")
@@ -156,7 +162,7 @@ class Connection:
                 self.finish()
 
             #calculate full_key = 'g^a*b mod p' = (half_key^b)
-            full_key = gen_AES_key(half_key)
+            full_key = self.gen_AES_key(half_key)
             #destroy b
             self.DH_private_key = 0
 
@@ -183,8 +189,14 @@ class Connection:
             challenge1 = self.read()
 
             rs2 = challenge1[:4]
-            integrity = challenge1[4:256+4]
-            half_key = challenge1[256+4:]
+            decry = challenge1[4:]
+            decry = self.keypair.decrypt(decry)
+            integrity = decry[:256]
+            half_key = decry[256:]
+
+            print("\n\n\n\n\n")
+            print(decry)
+            print("\n\n\n\n\n")
 
             if integrity == vpncrypto.sha256(rs1+self.sharedsecret.encode()):
                 print("Server authenticated!")
@@ -192,13 +204,13 @@ class Connection:
                 print("Server not authenticated!")
                 self.finish()
 
-            challenge2 = self.serverpublickey.encrypt(vpncrypto.sha256(rs2+self.sharedsecret.encode()+self.DH_public_key), 0.0)[0]
+            challenge2 = self.serverpublickey.encrypt(vpncrypto.sha256(rs2+self.sharedsecret.encode()+bytes(self.DH_public_key)), 0.0)[0]
 
             print("Sending challenge = E(SPuK,sha(rs2||sharedsecret)+g^b mod p)...")
             self.write(challenge2)
 
             #calculate full_key = 'g^b*a mod p' = (half_key^a)
-            full_key = gen_AES_key(half_key)
+            full_key = self.gen_AES_key(half_key)
             #destroy a
             self.DH_private_key = 0
 
