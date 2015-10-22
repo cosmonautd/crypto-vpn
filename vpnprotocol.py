@@ -46,6 +46,13 @@ class Connection:
         self.DH_private_key = self.gen_DHPrK(self.key_size)
         self.DH_public_key = self.gen_DHPuK()
 
+    def int2bytes(input_int):
+        return str(input_int).encode()
+
+    def bytes2int(input_bytes):
+        return int(input_bytes.decode())
+
+
     def start(self):
         """
             Start socket connection, authenticate server and client and exchange
