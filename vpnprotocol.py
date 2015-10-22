@@ -87,16 +87,16 @@ class Connection:
 
     def read(self):
         """
-            Reads data thgough the socket
+            Reads data through the socket
         """
         if self.connected():
             data = ""
             if self.mode == MODE_SERVER:
-                data = self.client.recv(1024)
+                data = self.client.recv(2028)
             elif self.mode == MODE_CLIENT:
-                data = self.socket.recv(1024)
+                data = self.socket.recv(2048)
             try:
-                if data.decode() == "f#":
+                if data.decode() == "f#" or len(data) == 0:
                     self.finish()
             except UnicodeDecodeError:
                 pass
@@ -140,12 +140,12 @@ class Connection:
             print("Received nonce rs1:", binascii.hexlify(rs1).decode().upper(), "Length:", len(rs1))
             print("Received client's public key!")
 
-            temp_aes = vpncrypto.AESCipher(vpncrypto.sha256(rs1+self.sharedsecret.encode()))
+            temp_aes1 = vpncrypto.AESCipher(vpncrypto.sha256(rs1+self.sharedsecret.encode()))
 
             rs2 = bytes(os.urandom(4))
             print("Generated nonce rs2:", binascii.hexlify(rs1).decode().upper(), "Length:", len(rs2))
 
-            challenge1 = rs2+temp_aes.encrypt("server".encode()+rs1+self.int2bytes(self.DH_public_key))
+            challenge1 = rs2+temp_aes1.encrypt("server".encode()+rs1+self.int2bytes(self.DH_public_key))
 
             print("Sending challenge1 = rs2+E(CPuK,sha(rs1||sharedsecret)+g^b mod p)...")
             self.write(challenge1)
@@ -155,32 +155,29 @@ class Connection:
             print("Waiting for client's response E(SPuK,sha(rs2||sharedsecret)+g^a mod p)...")
             challenge2 = self.read()
 
-            decrypted = temp_aes1.decrypt(check) #TODO: BYTES PROBLEMS "server" tem que temanho?
-            message = decrypted[:6]
-            rs2_client = decrypted[6:10]
-            DH_client_key = decrypted[10:]
+            if len(challenge2) > 0:
 
-            if (message == "client" and rs2_client == rs2):
-                print("Client authenticated!")
-            else:
-                print("Client not authenticated!")
-                self.finish()
+                decrypted = temp_aes2.decrypt(challenge2) #TODO: BYTES PROBLEMS "server" tem que temanho?
+                message = decrypted[:6]
+                rs2_client = decrypted[6:10]
+                DH_client_key = decrypted[10:]
 
+                if (message == "client".encode() and rs2_client == rs2):
+                    print("Client authenticated!")
+                    integer = self.bytes2int(DH_client_key)
 
-            integer = bytes2int(DH_client_key)
+                    real_aes_key = self.gen_AES_key(integer)
+                    #************************************||************************
+                    #destroy b
+                    self.DH_private_key = 0
+                    #**************************************************************
 
-            real_aes_key = self.gen_AES_key(integer)
-            #                                    /\
-            #************************************||************************
-            #calculate full_key = 'g^a*b mod p' = (half_key^b)
-            full_key = self.gen_AES_key(half_key)
-            #destroy b
-            self.DH_private_key = 0
-            #**************************************************************
-
-            print ("AES key aquired")
-            self.AESObject = vpncrypto.AESCipher(full_key)
-            print ("AES obeject created")
+                    print ("AES key aquired")
+                    self.AESObject = vpncrypto.AESCipher(vpncrypto.sha256(self.int2bytes(real_aes_key)))
+                    print ("AES object created")
+                else:
+                    print("Client not authenticated!")
+                    self.finish()
 
         elif self.mode == MODE_CLIENT:
             CPuK = self.publickey.exportKey()
@@ -204,30 +201,37 @@ class Connection:
             rs1_server = decrypted[6:10]
             DH_server_key = decrypted[10:]
 
-            if (message == "server" and rs1_server == rs1):
+            if (message == "server".encode() and rs1_server == rs1):
                 print("Server authenticated!")
+
+                DH_server_key = self.bytes2int(DH_server_key)
+
+                real_aes_key = self.gen_AES_key(DH_server_key)
+
+                temp_aes2 = vpncrypto.AESCipher(vpncrypto.sha256(rs2+self.sharedsecret.encode()))
+
+                challenge2 = temp_aes2.encrypt("client".encode()+rs2+self.int2bytes(self.DH_public_key))
+
+                self.write(challenge2)
+                print("Challenge 2 sent")
+
+                print("******************************")
+                print("******************************")
+                print(len(challenge2))
+                print("******************************")
+                print("******************************")
+
+                #**********************************************************************
+                #destroy a
+                self.DH_private_key = 0
+                #**********************************************************************
+
+                print ("AES key aquired")
+                self.AESObject = vpncrypto.AESCipher(vpncrypto.sha256(self.int2bytes(real_aes_key)))
+                print ("AES object created")
             else:
                 print("Server not authenticated!")
                 self.finish()
-
-            DH_server_key = self.bytes2int(DH_server_key)
-
-            real_aes_key = self.gen_AES_key(DH_server_key)
-
-            temp_aes2 = vpncrypto.AESCipher(vpncrypto.sha256(rs2+self.sharedsecret.encode()))
-
-            challenge2 = self.temp_aes2.encrypt("client".encode()+rs2+bytes([self.DH_public_key])) #TODO: BYTES PROBLEMS
-
-            #**********************************************************************
-            #calculate full_key = 'g^b*a mod p' = (half_key^a)
-            full_key = self.gen_AES_key(half_key)
-            #destroy a
-            self.DH_private_key = 0
-            #**********************************************************************
-
-            print ("AES key aquired")
-            self.AESObject = vpncrypto.AESCipher(full_key)
-            print ("AES obeject created")
 
     def read_encrypted(self):
         """
@@ -239,9 +243,9 @@ class Connection:
                 data = ""
                 try:
                     if self.mode == MODE_SERVER:
-                        encrypted_data = self.client.recv(1024)
+                        encrypted_data = self.client.recv(2048)
                     elif self.mode == MODE_CLIENT:
-                        encrypted_data = self.socket.recv(1024)
+                        encrypted_data = self.socket.recv(2048)
                 except socket.error:
                     pass
 
