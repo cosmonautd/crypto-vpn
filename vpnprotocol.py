@@ -46,10 +46,10 @@ class Connection:
         self.DH_private_key = self.gen_DHPrK(self.key_size)
         self.DH_public_key = self.gen_DHPuK()
 
-    def int2bytes(input_int):
+    def int2bytes(self, input_int):
         return str(input_int).encode()
 
-    def bytes2int(input_bytes):
+    def bytes2int(self, input_bytes):
         return int(input_bytes.decode())
 
 
@@ -118,7 +118,8 @@ class Connection:
             pass
 
     def gen_DHPrK(self, DH_key_size):
-        return bytes2int(os.urandom(DH_key_size)) #TODO: remove hardcoded "random"
+        return random.SystemRandom().randint(2**(DH_key_size-1), 2**DH_key_size)
+        #return bytes2int(os.urandom(DH_key_size)) #TODO: remove hardcoded "random"
 
     def gen_DHPuK(self):
         return pow(self.generator,self.DH_private_key,self.prime)
@@ -139,17 +140,17 @@ class Connection:
             print("Received nonce rs1:", binascii.hexlify(rs1).decode().upper(), "Length:", len(rs1))
             print("Received client's public key!")
 
-            temp_aes = AESCipher(vpncrypto.sha256(rs1+self.sharedsecret.encode()))
+            temp_aes = vpncrypto.AESCipher(vpncrypto.sha256(rs1+self.sharedsecret.encode()))
 
             rs2 = bytes(os.urandom(4))
             print("Generated nonce rs2:", binascii.hexlify(rs1).decode().upper(), "Length:", len(rs2))
 
-            challenge1 = rs2+self.temp_aes.encrypt(b"server"+rs1+bytes([self.DH_public_key])) #TODO: BYTES PROBLEMS
+            challenge1 = rs2+temp_aes.encrypt("server".encode()+rs1+self.int2bytes(self.DH_public_key))
 
             print("Sending challenge1 = rs2+E(CPuK,sha(rs1||sharedsecret)+g^b mod p)...")
             self.write(challenge1)
 
-            temp_aes2 = AESCipher(vpncrypto.sha256(rs2+self.sharedsecret.encode()))
+            temp_aes2 = vpncrypto.AESCipher(vpncrypto.sha256(rs2+self.sharedsecret.encode()))
 
             print("Waiting for client's response E(SPuK,sha(rs2||sharedsecret)+g^a mod p)...")
             challenge2 = self.read()
@@ -159,14 +160,14 @@ class Connection:
             rs2_client = decrypted[6:10]
             DH_client_key = decrypted[10:]
 
-            if (message == "server" and rs2_client == rs2):
+            if (message == "client" and rs2_client == rs2):
                 print("Client authenticated!")
             else:
                 print("Client not authenticated!")
                 self.finish()
 
 
-            integer = bytes2int(DH_client_key)'
+            integer = bytes2int(DH_client_key)
 
             real_aes_key = self.gen_AES_key(integer)
             #                                    /\
@@ -190,12 +191,11 @@ class Connection:
             self.write(rs1)
             print("Nonce sent!")
 
-            temp_aes1 = AESCipher(vpncrypto.sha256(rs1+self.sharedsecret.encode()))
+            temp_aes1 = vpncrypto.AESCipher(vpncrypto.sha256(rs1+self.sharedsecret.encode()))
 
             print("Waiting for server's response rs2+E(CPuK,sha(rs1||sharedsecret)+g^b mod p)...")
             challenge1 = self.read()
 
-            ********
             rs2 = challenge1[:4]
             check = challenge1[4:]
 
@@ -210,13 +210,13 @@ class Connection:
                 print("Server not authenticated!")
                 self.finish()
 
-            inteiro = DAVID's FUNCTION(DH_server_key)'
+            DH_server_key = self.bytes2int(DH_server_key)
 
-            real_aes_key-key = self.gen_AES_key(inteiro)
+            real_aes_key = self.gen_AES_key(DH_server_key)
 
-            temp_aes2 = AESCipher(vpncrypto.sha256(rs2+self.sharedsecret.encode()))
+            temp_aes2 = vpncrypto.AESCipher(vpncrypto.sha256(rs2+self.sharedsecret.encode()))
 
-            challenge2 = self.temp_aes2.encrypt(b"client"+rs2+bytes([self.DH_public_key])) #TODO: BYTES PROBLEMS
+            challenge2 = self.temp_aes2.encrypt("client".encode()+rs2+bytes([self.DH_public_key])) #TODO: BYTES PROBLEMS
 
             #**********************************************************************
             #calculate full_key = 'g^b*a mod p' = (half_key^a)
